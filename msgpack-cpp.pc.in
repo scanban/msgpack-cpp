@@ -1,0 +1,7 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=${prefix}/include
+
+Name: @PROJECT_NAME@
+Description: msgpack is a small and fast MessagePack library for C++11, providing MessagePack parsing and serialization.
+Version: @PROJECT_VERSION@
+Cflags: -I${includedir}

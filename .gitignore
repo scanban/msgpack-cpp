@@ -1,0 +1,7 @@
+.clang
+*.o
+build
+.envrc
+/main.cpp
+/cmake-build-*/
+/.idea/
