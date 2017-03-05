@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.2)
 project(msgpack VERSION 0.0.1 LANGUAGES C CXX)
 
 option(ENABLE_TESTING "ENABLE_TESTING" OFF)
+option(ENABLE_BENCHMARKING "ENABLE_BENCHMARKING" OFF)
 option(ENABLE_TRAVIS "ENABLE_TRAVIS" OFF)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -14,6 +15,10 @@ configure_file("msgpack-cpp.pc.in" "msgpack-cpp.pc" @ONLY)
 if (ENABLE_TESTING)
     enable_testing()
     add_subdirectory(test)
+endif ()
+
+if (ENABLE_BENCHMARKING)
+    add_subdirectory(benchmark)
 endif ()
 
 install(FILES ${INCLUDE_FILES} DESTINATION include)
