@@ -31,6 +31,9 @@ public:
     output_underflow_error(const char* s) : logic_error(s) {}
 };
 
+struct unpacker_skip {};
+constexpr unpacker_skip const skip{};
+
 class unpacker {
 public:
     using buffer_type = vector<uint8_t>;
@@ -70,11 +73,16 @@ public:
     unpacker& operator>>(uint64_t& value);
     unpacker& operator>>(string& value);
 
+    unpacker& operator>>(const unpacker_skip) {
+        return skip();
+    }
+
     template<typename T> unpacker& operator>>(vector<T>& vec);
     template<typename K, typename V> unpacker& operator>>(map<K, V>& map);
 
     bool empty() const { return _it == _it_end; }
     data_type_t type() const;
+    unpacker& skip();
 
 private:
     enum storage_type_t : uint8_t {
@@ -131,6 +139,13 @@ private:
         if (_it != _it_end) { return *_it++; }
         else { throw output_underflow_error(); }
     }
+
+    void skip_bytes(size_t count) {
+        if (_it + count > _it_end) { throw output_underflow_error(); }
+        _it += count;
+    }
+
+    size_t get_string_length();
 
     size_t get_array_length();
 
@@ -300,22 +315,7 @@ unpacker& unpacker::operator>>(uint64_t& value) {
 }
 
 unpacker& unpacker::operator>>(string& value) {
-    storage_type_t st = storage_type(peek_byte());
-    iterator_traits<decltype(_it)>::difference_type len;
-    if (st == SFIXSTR) {
-        len = get_byte() & 0x1fu;
-    } else if (st == SSTR8) {
-        get_byte();
-        len = get_byte();
-    } else if (st == SSTR16) {
-        get_byte();
-        len = get_int<uint16_t>();
-    } else if (st == SSTR32) {
-        get_byte();
-        len = get_int<uint32_t>();
-    } else {
-        throw output_conversion_error{ peek_byte() };
-    }
+    iterator_traits<decltype(_it)>::difference_type len = get_string_length();
 
     if (len > distance(_it, _it_end)) {
         output_underflow_error{};
@@ -371,6 +371,28 @@ unpacker::data_type_t unpacker::type() const {
     }
 }
 
+size_t unpacker::get_string_length() {
+    storage_type_t st = storage_type(peek_byte());
+    size_t len;
+
+    if (st == SFIXSTR) {
+        len = get_byte() & 0x1fu;
+    } else if (st == SSTR8) {
+        get_byte();
+        len = get_byte();
+    } else if (st == SSTR16) {
+        get_byte();
+        len = get_int<uint16_t>();
+    } else if (st == SSTR32) {
+        get_byte();
+        len = get_int<uint32_t>();
+    } else {
+        throw output_conversion_error{ peek_byte() };
+    }
+
+    return len;
+}
+
 size_t unpacker::get_array_length() {
     storage_type_t st = storage_type(peek_byte());
 
@@ -398,6 +420,72 @@ size_t unpacker::get_map_length() {
         throw output_conversion_error{};
     }
 }
+
+unpacker& unpacker::skip() {
+    switch (storage_type(peek_byte())) {
+        case STRUE:
+        case SFALSE:
+        case SFIXINT:
+        case SFIXNINT:
+            skip_bytes(1);
+            break;
+
+        case SINT8:
+        case SUINT8:
+            skip_bytes(2);
+            break;
+
+        case SINT16:
+        case SUINT16:
+            skip_bytes(3);
+            break;
+
+        case SINT32:
+        case SUINT32:
+        case SFLT32:
+            skip_bytes(5);
+            break;
+
+        case SINT64:
+        case SUINT64:
+        case SFLT64:
+            skip_bytes(9);
+            break;
+
+        case SFIXSTR:
+        case SSTR8:
+        case SSTR16:
+        case SSTR32:
+            skip_bytes(get_string_length());
+            break;
+
+        case SFIXARR:
+        case SARR16:
+        case SARR32: {
+            size_t len = get_array_length();
+            for (size_t i = 0; i < len; ++i) {
+                skip();
+            }
+        }
+            break;
+
+        case SFIXMAP:
+        case SMAP16:
+        case SMAP32: {
+            size_t len = get_map_length();
+            for (size_t i = 0; i < len; ++i) {
+                skip();
+                skip();
+            }
+        }
+            break;
+
+        default:
+            throw output_conversion_error{ peek_byte() };
+    }
+    return *this;
+}
+
 
 const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     // @formatter:off

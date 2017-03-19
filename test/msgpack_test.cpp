@@ -170,6 +170,39 @@ TEST(MSGPACK_PACKER_BASE, msgpack_map) {
     EXPECT_TRUE(u.empty());
 }
 
+#define TEST_SKIP(_P) \
+    do { \
+        packer p; \
+        p << (_P); \
+        unpacker u { p.get_buffer() }; \
+        u >> skip; \
+        EXPECT_TRUE(u.empty()); \
+    } while(0)
+
+
+TEST(MSGPACK_PACKER_BASE, msgpack_unpack_skip) {
+    TEST_SKIP(true);
+    TEST_SKIP(int8_t(1));
+    TEST_SKIP(uint8_t(1));
+    TEST_SKIP(numeric_limits<int16_t>::max());
+    TEST_SKIP(numeric_limits<uint16_t>::max());
+    TEST_SKIP(numeric_limits<int32_t>::max());
+    TEST_SKIP(numeric_limits<uint32_t>::max());
+    TEST_SKIP(numeric_limits<int64_t>::max());
+    TEST_SKIP(numeric_limits<uint64_t>::max());
+    TEST_SKIP(float{ 1.0 });
+    TEST_SKIP(double{ 1.0 });
+
+    vector<int8_t> v{ 1, 2, 3, 4, -5 };
+    TEST_SKIP(v);
+
+    map<int, int> m = {{ 1, 10 },
+                       { 2, 20 },
+                       { 3, 30 }};
+
+    TEST_SKIP(m);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
