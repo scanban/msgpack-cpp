@@ -81,7 +81,7 @@ public:
     template<typename K, typename V> unpacker& operator>>(map<K, V>& map);
 
     bool empty() const { return _it == _it_end; }
-    data_type_t type() const;
+    const data_type_t type() const;
     unpacker& skip();
 
 private:
@@ -170,7 +170,7 @@ private:
 };
 
 unpacker& unpacker::operator>>(bool& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
     if (st == STRUE) {
         get_byte();
         value = true;
@@ -185,7 +185,7 @@ unpacker& unpacker::operator>>(bool& value) {
 }
 
 unpacker& unpacker::operator>>(int8_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (st == SFIXINT || st == SFIXNINT) {
         value = get_byte();
@@ -199,7 +199,7 @@ unpacker& unpacker::operator>>(int8_t& value) {
 }
 
 unpacker& unpacker::operator>>(int16_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_INT8) {
         value = get_value<int8_t>();
@@ -214,7 +214,7 @@ unpacker& unpacker::operator>>(int16_t& value) {
 }
 
 unpacker& unpacker::operator>>(int32_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_INT8) {
         value = get_value<int8_t>();
@@ -231,7 +231,7 @@ unpacker& unpacker::operator>>(int32_t& value) {
 }
 
 unpacker& unpacker::operator>>(int64_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_INT8) {
         value = get_value<int8_t>();
@@ -250,7 +250,7 @@ unpacker& unpacker::operator>>(int64_t& value) {
 }
 
 unpacker& unpacker::operator>>(uint8_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (st == SFIXINT) {
         value = get_byte();
@@ -264,7 +264,7 @@ unpacker& unpacker::operator>>(uint8_t& value) {
 }
 
 unpacker& unpacker::operator>>(uint16_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_UINT8 || st == SFIXINT) {
         value = get_value<uint8_t>();
@@ -279,7 +279,7 @@ unpacker& unpacker::operator>>(uint16_t& value) {
 }
 
 unpacker& unpacker::operator>>(uint32_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_UINT8) {
         value = get_value<uint8_t>();
@@ -296,7 +296,7 @@ unpacker& unpacker::operator>>(uint32_t& value) {
 }
 
 unpacker& unpacker::operator>>(uint64_t& value) {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (type() == T_UINT8) {
         value = get_value<uint8_t>();
@@ -328,7 +328,7 @@ unpacker& unpacker::operator>>(string& value) {
 }
 
 template<typename T> unpacker& unpacker::operator>>(vector<T>& vec) {
-    size_t len = get_array_length();
+    const size_t len = get_array_length();
 
     for (size_t i = 0; i < len; ++i) {
         T val;
@@ -340,7 +340,7 @@ template<typename T> unpacker& unpacker::operator>>(vector<T>& vec) {
 }
 
 template<typename K, typename V> unpacker& unpacker::operator>>(map<K, V>& map) {
-    size_t len = get_map_length();
+    const size_t len = get_map_length();
 
     for (size_t i = 0; i < len; ++i) {
         K key;
@@ -353,9 +353,9 @@ template<typename K, typename V> unpacker& unpacker::operator>>(map<K, V>& map) 
     return *this;
 }
 
-unpacker::data_type_t unpacker::type() const {
+const unpacker::data_type_t unpacker::type() const {
     // @formatter:off
-        static data_type_t map_table[] {
+        static const data_type_t map_table[] {
                 /*  0 */ T_UNKNOWN, T_INT8, T_ARRAY, T_MAP, T_STRING, T_NULL, T_BOOLEAN, T_BOOLEAN,
                 /*  8 */ T_BINARY, T_BINARY, T_BINARY, T_EXTERNAL, T_EXTERNAL, T_EXTERNAL, T_FLOAT, T_DOUBLE,
                 /* 16 */ T_UINT8, T_UINT16, T_UINT32, T_UINT64, T_INT8, T_INT16, T_INT32, T_INT64,
@@ -372,7 +372,7 @@ unpacker::data_type_t unpacker::type() const {
 }
 
 size_t unpacker::get_string_length() {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
     size_t len;
 
     if (st == SFIXSTR) {
@@ -394,7 +394,7 @@ size_t unpacker::get_string_length() {
 }
 
 size_t unpacker::get_array_length() {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (st == SFIXARR) {
         return get_byte() & 0xfu;
@@ -408,7 +408,7 @@ size_t unpacker::get_array_length() {
 }
 
 size_t unpacker::get_map_length() {
-    storage_type_t st = storage_type(peek_byte());
+    const storage_type_t st = storage_type(peek_byte());
 
     if (st == SFIXMAP) {
         return get_byte() & 0xfu;
@@ -462,7 +462,7 @@ unpacker& unpacker::skip() {
         case SFIXARR:
         case SARR16:
         case SARR32: {
-            size_t len = get_array_length();
+            const size_t len = get_array_length();
             for (size_t i = 0; i < len; ++i) {
                 skip();
             }
@@ -472,7 +472,7 @@ unpacker& unpacker::skip() {
         case SFIXMAP:
         case SMAP16:
         case SMAP32: {
-            size_t len = get_map_length();
+            const size_t len = get_map_length();
             for (size_t i = 0; i < len; ++i) {
                 skip();
                 skip();
@@ -489,7 +489,7 @@ unpacker& unpacker::skip() {
 
 const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     // @formatter:off
-    static storage_type_t map_table[128] = {
+    static const storage_type_t map_table[128] = {
             /* 0x80 */  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,
             /* 0x88 */  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,
             /* 0x90 */  SFIXARR,  SFIXARR,  SFIXARR,  SFIXARR,  SFIXARR,  SFIXARR,  SFIXARR,  SFIXARR,

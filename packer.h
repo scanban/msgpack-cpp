@@ -188,7 +188,7 @@ packer& packer::operator<<(const string& str) {
 }
 
 packer& packer::operator<<(const char* str) {
-    size_t len = strlen(str);
+    const size_t len = strlen(str);
     put_string_length(len);
     std::copy(str, str + len, back_inserter(_buffer));
 
