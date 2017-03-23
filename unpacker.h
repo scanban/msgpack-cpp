@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <memory>
 
 namespace msgpack {
 
@@ -59,8 +60,12 @@ public:
         T_MAP,
     };
 
-    unpacker(const buffer_type& buf) : _buffer(buf) {}
-    unpacker(buffer_type&& buf) : _buffer(move(buf)) {}
+    unpacker() : _it{ nullptr }, _it_end{ nullptr } {}
+
+    unpacker(const buffer_type& buf)
+            : _buffer(make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
+    unpacker(buffer_type&& buf)
+            : _buffer(make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
 
     unpacker& operator>>(bool& value);
     unpacker& operator>>(int8_t& value);
@@ -72,6 +77,7 @@ public:
     unpacker& operator>>(uint32_t& value);
     unpacker& operator>>(uint64_t& value);
     unpacker& operator>>(string& value);
+    unpacker& operator>>(unpacker& value);
 
     unpacker& operator>>(const unpacker_skip) {
         return skip();
@@ -126,9 +132,9 @@ private:
         SFIXNINT = 36,
     };
 
-    buffer_type _buffer;
-    buffer_type::const_iterator _it{ _buffer.cbegin() };
-    buffer_type::const_iterator _it_end{ _buffer.cend() };
+    shared_ptr<buffer_type> _buffer;
+    buffer_type::const_iterator _it;
+    buffer_type::const_iterator _it_end;
 
     uint8_t peek_byte() const {
         if (_it != _it_end) { return *_it; }
@@ -157,7 +163,7 @@ private:
             uint8_t bytes[sizeof(T)];
         } cvt;
         for (uint8_t& b : cvt.bytes) { b = get_byte(); }
-        return platform::hton(cvt.data);
+        return platform::ntoh(cvt.data);
     };
 
     template<typename T> T get_value() {
@@ -324,6 +330,14 @@ unpacker& unpacker::operator>>(string& value) {
     value.append(_it, _it_end);
     _it += len;
 
+    return *this;
+}
+
+unpacker& unpacker::operator>>(unpacker& value) {
+    value._buffer = _buffer;
+    value._it = _it;
+    skip();
+    value._it_end = _it;
     return *this;
 }
 

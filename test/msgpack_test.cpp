@@ -203,6 +203,46 @@ TEST(MSGPACK_PACKER_BASE, msgpack_unpack_skip) {
     TEST_SKIP(m);
 }
 
+TEST(MSGPACK_PACKER_BASE, msgpack_unpack_unpacker_simple) {
+    packer p;
+    p << 1;
+
+    unpacker u(p.get_buffer());
+    unpacker t;
+    EXPECT_TRUE(t.empty());
+
+    u >> t;
+
+    EXPECT_TRUE(u.empty());
+    EXPECT_EQ(t.type(), unpacker::T_INT8);
+    EXPECT_EQ(get_value<int8_t>(t), 1);
+}
+
+TEST(MSGPACK_PACKER_BASE, msgpack_pack_packer_simple) {
+    packer p;
+    p << 1 << (packer{} << 2) << 3;
+
+    unpacker u(p.get_buffer());
+    EXPECT_EQ(get_value<int8_t>(u), 1);
+    EXPECT_EQ(get_value<int8_t>(u), 2);
+    EXPECT_EQ(get_value<int8_t>(u), 3);
+}
+
+TEST(MSGPACK_PACKER_BASE, msgpack_pack_packer_array) {
+    packer p;
+    vector<packer> vp{ packer{} << 1, packer{} << "test", packer{} << 100 };
+    p << vp;
+
+    unpacker u{ p.get_buffer() };
+    EXPECT_EQ(u.type(), unpacker::T_ARRAY);
+
+    vector<unpacker> vu;
+    u >> vu;
+    EXPECT_EQ(get_value<int8_t>(vu[0]), 1);
+    EXPECT_EQ(get_value<string>(vu[1]), "test");
+    EXPECT_EQ(get_value<int8_t>(vu[2]), 100);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

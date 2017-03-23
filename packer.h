@@ -33,6 +33,7 @@ public:
     packer& operator<<(const double value);
     packer& operator<<(const string& str);
     packer& operator<<(const char* str);
+    packer& operator<<(const packer& value);
 
     template<typename T> packer& operator<<(pair<const T*, size_t> array_tuple);
 
@@ -192,6 +193,12 @@ packer& packer::operator<<(const char* str) {
     put_string_length(len);
     std::copy(str, str + len, back_inserter(_buffer));
 
+    return *this;
+}
+
+packer& packer::operator<<(const packer& value) {
+    _buffer.reserve(_buffer.size() + value._buffer.size());
+    _buffer.insert(_buffer.end(), value._buffer.cbegin(), value._buffer.cend());
     return *this;
 }
 
