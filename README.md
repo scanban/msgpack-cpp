@@ -62,7 +62,6 @@ Supported features
 
 Unsupported features
 ===============
-* nested arrays and maps
 * external data
 
 License

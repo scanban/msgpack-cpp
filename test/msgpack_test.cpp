@@ -243,6 +243,29 @@ TEST(MSGPACK_PACKER_BASE, msgpack_pack_packer_array) {
     EXPECT_EQ(get_value<int8_t>(vu[2]), 100);
 }
 
+
+string test_pack_to_string(packer& p) {
+    return to_string(unpacker{ p.get_buffer() });
+}
+
+template <typename T, typename ... ARGS> string test_pack_to_string(packer& p, T val, ARGS... args) {
+    p << val;
+    return test_pack_to_string(p, args...);
+}
+
+template <typename ... ARGS> string test_pack_to_string(ARGS... args) {
+    packer p;
+    return test_pack_to_string(p, args...);
+}
+
+TEST(MSGPACK_PACKER_BASE, msgpack_pack_unpacker_to_string) {
+    EXPECT_EQ(test_pack_to_string(1, 10, "test"), "{1,10,\"test\"}");
+    EXPECT_EQ(test_pack_to_string(vector<int>{1, 10, 20}), "{[1,10,20]}");
+    EXPECT_EQ(test_pack_to_string(map<string, int>{{ "1", 10 },
+                                                   { "2", 20 },
+                                                   { "3", 30 }}), "{{\"1\":10,\"2\":20,\"3\":30}}");
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -14,6 +14,7 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
+#include <string>
 
 namespace msgpack {
 
@@ -76,6 +77,8 @@ public:
     unpacker& operator>>(uint16_t& value);
     unpacker& operator>>(uint32_t& value);
     unpacker& operator>>(uint64_t& value);
+    unpacker& operator>>(float& value);
+    unpacker& operator>>(double& value);
     unpacker& operator>>(string& value);
     unpacker& operator>>(unpacker& value);
 
@@ -85,6 +88,12 @@ public:
 
     template<typename T> unpacker& operator>>(vector<T>& vec);
     template<typename K, typename V> unpacker& operator>>(map<K, V>& map);
+
+    template <typename T> T get_value() {
+        T val;
+        *this >> val;
+        return val;
+    }
 
     bool empty() const { return _it == _it_end; }
     const data_type_t type() const;
@@ -165,12 +174,6 @@ private:
         for (uint8_t& b : cvt.bytes) { b = get_byte(); }
         return platform::ntoh(cvt.data);
     };
-
-    template<typename T> T get_value() {
-        T val;
-        *this >> val;
-        return val;
-    }
 
     static const storage_type_t storage_type(uint8_t b);
 };
@@ -320,6 +323,33 @@ unpacker& unpacker::operator>>(uint64_t& value) {
     return *this;
 }
 
+unpacker& unpacker::operator>>(float& value) {
+    const storage_type_t st = storage_type(peek_byte());
+
+    if(st == SFLT32) {
+        get_byte();
+        value = get_int<float>();
+    } else {
+        throw output_conversion_error{ peek_byte() };
+    }
+    return *this;
+}
+
+unpacker& unpacker::operator>>(double& value) {
+    const storage_type_t st = storage_type(peek_byte());
+
+    if(type() == T_FLOAT) {
+        value = get_value<float>();
+    } else if(st == SFLT64) {
+        get_byte();
+        value = get_int<double>();
+    } else {
+        throw output_conversion_error{ peek_byte() };
+    }
+    return *this;
+}
+
+
 unpacker& unpacker::operator>>(string& value) {
     iterator_traits<decltype(_it)>::difference_type len = get_string_length();
 
@@ -327,7 +357,7 @@ unpacker& unpacker::operator>>(string& value) {
         output_underflow_error{};
     }
     value.clear();
-    value.append(_it, _it_end);
+    value.append(_it, _it + len);
     _it += len;
 
     return *this;
@@ -525,6 +555,110 @@ const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
 
     if (b <= 0x7f) { return SFIXINT; }
     else { return map_table[b - 0x80]; }
+}
+
+string to_string(const unpacker& value, size_t level = 0) {
+    unpacker u { value };
+    string ret;
+
+    if(level == 0) {
+        ret = '{';
+    }
+
+    while (!u.empty()) {
+        switch (u.type()) {
+            case unpacker::T_BOOLEAN:
+                ret += u.get_value<bool>() ? "true" : "false";
+                break;
+            case unpacker::T_INT8:
+                ret += std::to_string(u.get_value<int8_t>());
+                break;
+            case unpacker::T_INT16:
+                ret += std::to_string(u.get_value<int16_t>());
+                break;
+            case unpacker::T_INT32:
+                ret += std::to_string(u.get_value<int32_t>());
+                break;
+            case unpacker::T_INT64:
+                ret += std::to_string(u.get_value<int64_t>());
+                break;
+
+            case unpacker::T_UINT8:
+                ret += std::to_string(u.get_value<uint8_t>());
+                break;
+            case unpacker::T_UINT16:
+                ret += std::to_string(u.get_value<uint16_t>());
+                break;
+            case unpacker::T_UINT32:
+                ret += std::to_string(u.get_value<uint32_t>());
+                break;
+            case unpacker::T_UINT64:
+                ret += std::to_string(u.get_value<uint64_t>());
+                break;
+
+            case unpacker::T_FLOAT:
+                ret += std::to_string(u.get_value<float>());
+                break;
+            case unpacker::T_DOUBLE:
+                ret += std::to_string(u.get_value<double>());
+                break;
+
+            case unpacker::T_STRING:
+                ret += '"' + u.get_value<string>() + '"';
+                break;
+
+            case unpacker::T_ARRAY: {
+                vector<unpacker> v;
+
+                u >> v;
+                ret += '[';
+
+                for(const auto& e: v) {
+                    ret += to_string(e, level + 1) + ',';
+                }
+
+                if(v.empty()) {
+                    ret += ']';
+                } else {
+                    ret.back() = ']';
+                }
+            }
+                break;
+
+            case unpacker::T_MAP: {
+                map<string, unpacker> m;
+
+                u >> m;
+                ret += '{';
+
+                for (const auto& e: m) {
+                    ret += '"' + e.first + '"' + ':' + to_string(e.second, level + 1) + ',';
+                }
+
+                if(m.empty()) {
+                    ret += '}';
+                } else {
+                    ret.back() = '}';
+                }
+            }
+                break;
+
+            case unpacker::T_NULL:
+                u >> skip;
+                break;
+
+            default:
+                throw output_conversion_error{};
+        }
+        ret += ',';
+    }
+    ret.pop_back();
+
+    if(level == 0) {
+        ret += '}';
+    }
+
+    return ret;
 }
 
 }
