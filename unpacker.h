@@ -471,6 +471,7 @@ unpacker& unpacker::skip() {
         case SFALSE:
         case SFIXINT:
         case SFIXNINT:
+        case SNIL:
             skip_bytes(1);
             break;
 
@@ -644,6 +645,7 @@ string to_string(const unpacker& value, size_t level = 0) {
                 break;
 
             case unpacker::T_NULL:
+                ret += "null";
                 u >> skip;
                 break;
 
