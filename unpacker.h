@@ -166,7 +166,7 @@ private:
 
     size_t get_map_length();
 
-    template<typename T> T get_int() {
+    template<typename T> T get_numeric() {
         union {
             T data;
             uint8_t bytes[sizeof(T)];
@@ -214,7 +214,7 @@ unpacker& unpacker::operator>>(int16_t& value) {
         value = get_value<int8_t>();
     } else if (st == SINT16) {
         get_byte();
-        value = get_int<int16_t>();
+        value = get_numeric<int16_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -231,7 +231,7 @@ unpacker& unpacker::operator>>(int32_t& value) {
         value = get_value<int16_t>();
     } else if (st == SINT32) {
         get_byte();
-        value = get_int<int32_t>();
+        value = get_numeric<int32_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -250,7 +250,7 @@ unpacker& unpacker::operator>>(int64_t& value) {
         value = get_value<int32_t>();
     } else if (st == SINT64) {
         get_byte();
-        value = get_int<int64_t>();
+        value = get_numeric<int64_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -279,7 +279,7 @@ unpacker& unpacker::operator>>(uint16_t& value) {
         value = get_value<uint8_t>();
     } else if (st == SINT16) {
         get_byte();
-        value = get_int<uint16_t>();
+        value = get_numeric<uint16_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -296,7 +296,7 @@ unpacker& unpacker::operator>>(uint32_t& value) {
         value = get_value<uint16_t>();
     } else if (st == SUINT32) {
         get_byte();
-        value = get_int<uint32_t>();
+        value = get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -315,7 +315,7 @@ unpacker& unpacker::operator>>(uint64_t& value) {
         value = get_value<uint32_t>();
     } else if (st == SUINT64) {
         get_byte();
-        value = get_int<uint64_t>();
+        value = get_numeric<uint64_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -328,7 +328,7 @@ unpacker& unpacker::operator>>(float& value) {
 
     if(st == SFLT32) {
         get_byte();
-        value = get_int<float>();
+        value = get_numeric<float>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -342,7 +342,7 @@ unpacker& unpacker::operator>>(double& value) {
         value = get_value<float>();
     } else if(st == SFLT64) {
         get_byte();
-        value = get_int<double>();
+        value = get_numeric<double>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -426,10 +426,10 @@ size_t unpacker::get_string_length() {
         len = get_byte();
     } else if (st == SSTR16) {
         get_byte();
-        len = get_int<uint16_t>();
+        len = get_numeric<uint16_t>();
     } else if (st == SSTR32) {
         get_byte();
-        len = get_int<uint32_t>();
+        len = get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -443,9 +443,9 @@ size_t unpacker::get_array_length() {
     if (st == SFIXARR) {
         return get_byte() & 0xfu;
     } else if (st == SARR16) {
-        return get_int<uint16_t>();
+        return get_numeric<uint16_t>();
     } else if (st == SARR32) {
-        return get_int<uint32_t>();
+        return get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{};
     }
@@ -457,9 +457,9 @@ size_t unpacker::get_map_length() {
     if (st == SFIXMAP) {
         return get_byte() & 0xfu;
     } else if (st == SMAP16) {
-        return get_int<uint16_t>();
+        return get_numeric<uint16_t>();
     } else if (st == SMAP32) {
-        return get_int<uint32_t>();
+        return get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{};
     }

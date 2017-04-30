@@ -92,7 +92,7 @@ private:
         _buffer.emplace_back(b);
     }
 
-    template<typename T> void put_int(const T t);
+    template<typename T> void put_numeric(const T t);
 
     void put_string_length(size_t length);
     void put_array_length(size_t length);
@@ -121,10 +121,10 @@ packer& packer::operator<<(const int32_t value) {
         put_byte(static_cast<uint8_t>(value));
     } else if (value >= numeric_limits<int16_t>::min() && value <= numeric_limits<int16_t>::max()) {
         put_byte(0xd1);
-        put_int(static_cast<const int16_t>(value));
+        put_numeric(static_cast<const int16_t>(value));
     } else {
         put_byte(0xd2);
-        put_int(value);
+        put_numeric(value);
     }
     return *this;
 }
@@ -134,7 +134,7 @@ packer& packer::operator<<(const int64_t value) {
         *this << static_cast<int32_t>(value);
     } else {
         put_byte(0xd3);
-        put_int(value);
+        put_numeric(value);
     }
 
     return *this;
@@ -148,10 +148,10 @@ packer& packer::operator<<(const uint32_t value) {
         put_byte(static_cast<uint8_t>(value));
     } else if (value <= numeric_limits<uint16_t>::max()) {
         put_byte(0xcd);
-        put_int(static_cast<const int16_t>(value));
+        put_numeric(static_cast<const int16_t>(value));
     } else {
         put_byte(0xce);
-        put_int(value);
+        put_numeric(value);
     }
     return *this;
 }
@@ -161,7 +161,7 @@ packer& packer::operator<<(const uint64_t value) {
         *this << static_cast<uint32_t>(value);
     } else {
         put_byte(0xcf);
-        put_int(value);
+        put_numeric(value);
     }
 
     return *this;
@@ -169,14 +169,14 @@ packer& packer::operator<<(const uint64_t value) {
 
 packer& packer::operator<<(const float value) {
     put_byte(0xca);
-    put_int(value);
+    put_numeric(value);
 
     return *this;
 }
 
 packer& packer::operator<<(const double value) {
     put_byte(0xcb);
-    put_int(value);
+    put_numeric(value);
 
     return *this;
 }
@@ -211,7 +211,7 @@ template<typename T> packer& packer::operator<<(pair<const T*, size_t> array_tup
     return *this;
 }
 
-template<typename T> void packer::put_int(const T t) {
+template<typename T> void packer::put_numeric(const T t) {
     union {
         T data;
         uint8_t bytes[sizeof(T)];
@@ -226,9 +226,9 @@ void packer::put_string_length(size_t length) {
     } else if (length <= numeric_limits<uint8_t>::max()) {
         put_byte(static_cast<uint8_t>(length));
     } else if (length <= numeric_limits<uint16_t>::max()) {
-        put_int(static_cast<uint16_t>(length));
+        put_numeric(static_cast<uint16_t>(length));
     } else if (length <= numeric_limits<uint32_t>::max()) {
-        put_int(static_cast<uint32_t>(length));
+        put_numeric(static_cast<uint32_t>(length));
     }
 }
 
@@ -236,9 +236,9 @@ void packer::put_array_length(size_t length) {
     if (length < 16) {
         put_byte(uint8_t { 0x90u } + static_cast<uint8_t>(length));
     } else if (length <= numeric_limits<uint16_t>::max()) {
-        put_int(static_cast<uint16_t>(length));
+        put_numeric(static_cast<uint16_t>(length));
     } else if (length <= numeric_limits<uint32_t>::max()) {
-        put_int(static_cast<uint32_t>(length));
+        put_numeric(static_cast<uint32_t>(length));
     }
 }
 
@@ -246,9 +246,9 @@ void packer::put_map_length(size_t length) {
     if (length < 16) {
         put_byte(uint8_t { 0x80u } + static_cast<uint8_t>(length));
     } else if (length <= numeric_limits<uint16_t>::max()) {
-        put_int(static_cast<uint16_t>(length));
+        put_numeric(static_cast<uint16_t>(length));
     } else if (length <= numeric_limits<uint32_t>::max()) {
-        put_int(static_cast<uint32_t>(length));
+        put_numeric(static_cast<uint32_t>(length));
     }
 }
 
