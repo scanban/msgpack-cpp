@@ -130,6 +130,15 @@ TEST(MSGPACK_PACKER_BASE, msgpack_uint8) {
     EXPECT_TRUE(u.empty());
 }
 
+TEST(MSGPACK_PACKER_BASE, msgpack_double) {
+    packer p;
+    p << 0.5;
+    unpacker u{ p.get_buffer() };
+    EXPECT_EQ(u.type(), unpacker::T_DOUBLE);
+    EXPECT_EQ(get_value<double>(u), 0.5);
+
+}
+
 TEST(MSGPACK_PACKER_BASE, msgpack_str) {
     packer p;
     p << "test";
@@ -264,6 +273,17 @@ TEST(MSGPACK_PACKER_BASE, msgpack_pack_unpacker_to_string) {
     EXPECT_EQ(test_pack_to_string(map<string, int>{{ "1", 10 },
                                                    { "2", 20 },
                                                    { "3", 30 }}), "{{\"1\":10,\"2\":20,\"3\":30}}");
+}
+
+TEST(MSGPACK_INTEGRATION, structure) {
+    vector<uint8_t> v = { 135, 163, 105, 110, 116, 1, 165, 102, 108, 111, 97, 116, 203, 63, 224, 0, 0, 0, 0, 0, 0, 167,
+                          98, 111, 111, 108, 101, 97, 110, 195, 164, 110, 117, 108, 108, 192, 166, 115, 116, 114, 105,
+                          110, 103, 167, 102, 111, 111, 32, 98, 97, 114, 165, 97, 114, 114, 97, 121, 146, 163, 102, 111,
+                          111, 163, 98, 97, 114, 166, 111, 98, 106, 101, 99, 116, 130, 163, 102, 111, 111, 1, 163, 98,
+                          97, 122, 203, 63, 224, 0, 0, 0, 0, 0, 0 };
+
+    unpacker u { v };
+    printf("%s\n", to_string(u).c_str());
 }
 
 int main(int argc, char** argv) {

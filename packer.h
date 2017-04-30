@@ -92,7 +92,7 @@ private:
         _buffer.emplace_back(b);
     }
 
-    template<typename T> void put_int(const T t);;
+    template<typename T> void put_int(const T t);
 
     void put_string_length(size_t length);
     void put_array_length(size_t length);
