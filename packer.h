@@ -81,7 +81,7 @@ public:
         return *this;
     }
 
-    const vector<uint8_t>& get_buffer() const {
+    vector<uint8_t> get_buffer() const {
         return _buffer;
     }
 
