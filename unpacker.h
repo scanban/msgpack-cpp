@@ -68,21 +68,21 @@ public:
     unpacker(buffer_type&& buf)
             : _buffer(make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
 
-    unpacker& operator>>(bool& value);
-    unpacker& operator>>(int8_t& value);
-    unpacker& operator>>(int16_t& value);
-    unpacker& operator>>(int32_t& value);
-    unpacker& operator>>(int64_t& value);
-    unpacker& operator>>(uint8_t& value);
-    unpacker& operator>>(uint16_t& value);
-    unpacker& operator>>(uint32_t& value);
-    unpacker& operator>>(uint64_t& value);
-    unpacker& operator>>(float& value);
-    unpacker& operator>>(double& value);
-    unpacker& operator>>(string& value);
-    unpacker& operator>>(unpacker& value);
+    inline unpacker& operator>>(bool& value);
+    inline unpacker& operator>>(int8_t& value);
+    inline unpacker& operator>>(int16_t& value);
+    inline unpacker& operator>>(int32_t& value);
+    inline unpacker& operator>>(int64_t& value);
+    inline unpacker& operator>>(uint8_t& value);
+    inline unpacker& operator>>(uint16_t& value);
+    inline unpacker& operator>>(uint32_t& value);
+    inline unpacker& operator>>(uint64_t& value);
+    inline unpacker& operator>>(float& value);
+    inline unpacker& operator>>(double& value);
+    inline unpacker& operator>>(string& value);
+    inline unpacker& operator>>(unpacker& value);
 
-    unpacker& operator>>(const unpacker_skip) {
+    inline unpacker& operator>>(const unpacker_skip) {
         return skip();
     }
 
@@ -96,8 +96,8 @@ public:
     }
 
     bool empty() const { return _it == _it_end; }
-    const data_type_t type() const;
-    unpacker& skip();
+    inline const data_type_t type() const;
+    inline unpacker& skip();
 
 private:
     enum storage_type_t : uint8_t {
@@ -160,11 +160,11 @@ private:
         _it += count;
     }
 
-    size_t get_string_length();
+    inline size_t get_string_length();
 
-    size_t get_array_length();
+    inline size_t get_array_length();
 
-    size_t get_map_length();
+    inline size_t get_map_length();
 
     template<typename T> T get_numeric() {
         union {
@@ -175,7 +175,7 @@ private:
         return platform::ntoh(cvt.data);
     };
 
-    static const storage_type_t storage_type(uint8_t b);
+    inline static const storage_type_t storage_type(uint8_t b);
 };
 
 unpacker& unpacker::operator>>(bool& value) {
@@ -554,11 +554,10 @@ const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     };
     // @formatter:on
 
-    if (b <= 0x7f) { return SFIXINT; }
-    else { return map_table[b - 0x80]; }
+    return (b <= 0x7f) ? SFIXINT : map_table[b - 0x80];
 }
 
-string to_string(const unpacker& value, size_t level = 0) {
+inline string to_string(const unpacker& value, size_t level = 0) {
     unpacker u { value };
     string ret;
 

@@ -93,11 +93,11 @@ template<typename T> constexpr typename std::enable_if<sizeof(T) == 4, T>::type 
 template<typename T> constexpr typename std::enable_if<sizeof(T) == 8, T>::type byte_swap(const T t) {
     return (T) (PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8((uint64_t) t));
 }
-template<> float byte_swap(const float t) {
+inline float byte_swap(const float t) {
     uint32_t tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_4(*((uint32_t*) &t));
     return *((float*) &tmp);
 }
-template<> double byte_swap(const double t) {
+inline double byte_swap(const double t) {
     uint64_t tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8(*((uint64_t*) &t));
     return *((double*) &tmp);
 }

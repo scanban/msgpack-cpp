@@ -23,17 +23,17 @@ class packer {
 public:
     using buffer_type = vector<uint8_t>;
 
-    packer& operator<<(nullptr_t);
+    inline packer& operator<<(nullptr_t);
     template<typename T> typename enable_if<is_same<bool, T>::value, packer&>::type operator<<(const T value);
-    packer& operator<<(const int32_t value);
-    packer& operator<<(const int64_t value);
-    packer& operator<<(const uint32_t value);
-    packer& operator<<(const uint64_t value);
-    packer& operator<<(const float value);
-    packer& operator<<(const double value);
-    packer& operator<<(const string& str);
-    packer& operator<<(const char* str);
-    packer& operator<<(const packer& value);
+    inline packer& operator<<(const int32_t value);
+    inline packer& operator<<(const int64_t value);
+    inline packer& operator<<(const uint32_t value);
+    inline packer& operator<<(const uint64_t value);
+    inline packer& operator<<(const float value);
+    inline packer& operator<<(const double value);
+    inline packer& operator<<(const string& str);
+    inline packer& operator<<(const char* str);
+    inline packer& operator<<(const packer& value);
 
     template<typename T> packer& operator<<(pair<const T*, size_t> array_tuple);
 
@@ -94,9 +94,9 @@ private:
 
     template<typename T> void put_numeric(const T t);
 
-    void put_string_length(size_t length);
-    void put_array_length(size_t length);
-    void put_map_length(size_t length);
+    inline void put_string_length(size_t length);
+    inline void put_array_length(size_t length);
+    inline void put_map_length(size_t length);
 };
 
 packer& packer::operator<<(nullptr_t) {
