@@ -163,6 +163,21 @@ TEST(MSGPACK_PACKER_BASE, msgpack_array) {
     EXPECT_TRUE(u.empty());
 }
 
+TEST(MSGPACK_PACKER_BASE, msgpack_legacy_array) {
+    packer p;
+    int8_t v_in[] = { 1, 2, 3, 4, -5 };
+    p << v_in;
+
+    unpacker u{ p.get_buffer() };
+    vector<int8_t> v_out;
+    u >> v_out;
+
+    vector<int8_t> test = {1, 2, 3, 4, -5};
+
+    EXPECT_THAT(test, ::testing::ContainerEq(v_out));
+    EXPECT_TRUE(u.empty());
+}
+
 TEST(MSGPACK_PACKER_BASE, msgpack_map) {
     packer p;
     map<int, int> m = {{ 1, 10 },

@@ -5,14 +5,6 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
-#include <cstring>
-#include <tuple>
-#include <array>
-#include <vector>
-#include <set>
-#include <unordered_set>
-#include <map>
-#include <unordered_map>
 #include "platform.h"
 
 namespace msgpack {
@@ -22,6 +14,9 @@ using namespace std;
 class packer {
 public:
     using buffer_type = vector<uint8_t>;
+
+    template <typename T> struct is_pair : false_type {};
+    template <typename K, typename V> struct is_pair<pair<K, V>> : true_type {};
 
     inline packer& operator<<(nullptr_t);
     template<typename T> typename enable_if<is_same<bool, T>::value, packer&>::type operator<<(const T value);
@@ -35,51 +30,11 @@ public:
     inline packer& operator<<(const char* str);
     inline packer& operator<<(const packer& value);
 
-    template<typename T> packer& operator<<(pair<const T*, size_t> array_tuple);
-
-    template<typename T, size_t N> packer& operator<<(const T (& array)[N]) {
-        return *this << make_pair(array, N);
+    template <typename T> typename enable_if<not is_fundamental<T>::value, packer&>::type operator <<(const T& val) {
+        return put<T>(begin(val), end(val));
     }
 
-    template<typename T, size_t N> packer& operator<<(const array <T, N> array) {
-        return *this << make_pair(array.data(), N);
-    }
-
-    template<typename T> packer& operator<<(const vector<T>& v) {
-        return *this << make_pair(v.data(), v.size());
-    }
-
-    template<typename T> packer& operator<<(const set<T>& s) {
-        for (const T& e : s) {
-            *this << e;
-        }
-        return *this;
-    }
-
-    template<typename T> packer& operator<<(const unordered_set<T>& s) {
-        for (const T& e : s) {
-            *this << e;
-        }
-        return *this;
-    }
-
-    template<typename K, typename V> packer& operator<<(const map<K, V>& m) {
-        put_map_length(m.size());
-        for (const auto& e: m) {
-            *this << e.first;
-            *this << e.second;
-        }
-        return *this;
-    }
-
-    template<typename K, typename V> packer& operator<<(const unordered_map<K, V>& m) {
-        put_map_length(m.size());
-        for (const auto& e: m) {
-            *this << e.first;
-            *this << e.second;
-        }
-        return *this;
-    }
+    template<typename T, size_t N> packer& operator<<(const T (& array)[N]);
 
     vector<uint8_t> get_buffer() const {
         return _buffer;
@@ -97,6 +52,27 @@ private:
     inline void put_string_length(size_t length);
     inline void put_array_length(size_t length);
     inline void put_map_length(size_t length);
+
+    template<typename T, typename U = typename iterator_traits<typename T::const_iterator>::value_type>
+    typename enable_if<is_pair<U>::value, packer&>::type
+    put(typename T::const_iterator begin, typename T::const_iterator end) {
+        put_map_length(static_cast<size_t>(distance(begin, end)));
+        for_each(begin, end, [this](const pair<typename U::first_type, typename U::second_type>& e) {
+            *this << e.first;
+            *this << e.second;
+        });
+        return *this;
+    }
+
+    template<typename T, typename U = typename iterator_traits<typename T::const_iterator>::value_type>
+    typename enable_if<not is_pair<U>::value, packer&>::type
+    put(typename T::const_iterator begin, typename T::const_iterator end) {
+        put_array_length(static_cast<size_t>(distance(begin, end)));
+        for_each(begin, end, [this](const U& e) {
+            *this << e;
+        });
+        return *this;
+    }
 };
 
 packer& packer::operator<<(nullptr_t) {
@@ -202,15 +178,6 @@ packer& packer::operator<<(const packer& value) {
     return *this;
 }
 
-template<typename T> packer& packer::operator<<(pair<const T*, size_t> array_tuple) {
-    put_array_length(get<1>(array_tuple));
-    for (size_t i = 0; i < get<1>(array_tuple); ++i) {
-        *this << get<0>(array_tuple)[i];
-    }
-
-    return *this;
-}
-
 template<typename T> void packer::put_numeric(const T t) {
     union {
         T data;
@@ -218,6 +185,14 @@ template<typename T> void packer::put_numeric(const T t) {
     } cvt = { t };
     cvt.data = platform::hton(cvt.data);
     for (uint8_t b : cvt.bytes) { put_byte(b); }
+}
+
+template<typename T, size_t N> packer& packer::operator<<(const T (& array)[N]) {
+    put_array_length(N);
+    std::for_each(array, array + N, [this] (const T& e) {
+        *this << e;
+    });
+    return *this;
 }
 
 void packer::put_string_length(size_t length) {
