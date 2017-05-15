@@ -5,6 +5,7 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <cstring>
 #include "platform.h"
 
 namespace msgpack {
