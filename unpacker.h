@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include "platform.h"
 
 namespace msgpack {
 
