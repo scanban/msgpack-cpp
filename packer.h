@@ -17,7 +17,7 @@ public:
     template <typename T> struct is_pair : std::false_type {};
     template <typename K, typename V> struct is_pair<std::pair<K, V>> : std::true_type {};
 
-    inline packer& operator<<(nullptr_t);
+    inline packer& operator<<(std::nullptr_t);
     template<typename T> typename std::enable_if<std::is_same<bool, T>::value, packer&>::type
     operator<<(const T value);
     inline packer& operator<<(const int32_t value);
@@ -76,7 +76,7 @@ private:
     }
 };
 
-packer& packer::operator<<(nullptr_t) {
+packer& packer::operator<<(std::nullptr_t) {
     put_byte(0xc0);
     return *this;
 }
