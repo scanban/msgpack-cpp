@@ -60,7 +60,11 @@ public:
         T_MAP,
     };
 
+#ifdef _MSC_VER
+    unpacker() : _it{}, _it_end{} {}
+#else
     unpacker() : _it{ nullptr }, _it_end{ nullptr } {}
+#endif
 
     unpacker(const buffer_type& buf)
             : _buffer(std::make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
@@ -353,7 +357,7 @@ unpacker& unpacker::operator>>(std::string& value) {
     std::iterator_traits<decltype(_it)>::difference_type len = get_string_length();
 
     if (len > distance(_it, _it_end)) {
-        output_underflow_error{};
+        throw output_underflow_error{};
     }
     value.clear();
     value.append(_it, _it + len);

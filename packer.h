@@ -30,7 +30,7 @@ public:
     inline packer& operator<<(const char* str);
     inline packer& operator<<(const packer& value);
 
-    template <typename T> typename std::enable_if<not std::is_fundamental<T>::value, packer&>::type
+    template <typename T> typename std::enable_if<! std::is_fundamental<T>::value, packer&>::type
     operator <<(const T& val) {
         return put<T>(std::begin(val), std::end(val));
     }
@@ -66,7 +66,7 @@ private:
     }
 
     template<typename T, typename U = typename std::iterator_traits<typename T::const_iterator>::value_type>
-    typename std::enable_if<not is_pair<U>::value, packer&>::type
+    typename std::enable_if<! is_pair<U>::value, packer&>::type
     put(typename T::const_iterator begin, typename T::const_iterator end) {
         put_array_length(static_cast<size_t>(std::distance(begin, end)));
         std::for_each(begin, end, [this](const U& e) {
