@@ -4,6 +4,7 @@
 #include <unpacker.h>
 
 using namespace msgpack;
+using namespace std;
 
 template<typename T> T get_value(unpacker& u) {
     T val;

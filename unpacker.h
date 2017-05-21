@@ -19,19 +19,17 @@
 
 namespace msgpack {
 
-using namespace std;
-
-class output_conversion_error : public logic_error {
+class output_conversion_error : public std::logic_error {
 public:
     output_conversion_error() : logic_error("unknown conversion error") {}
     output_conversion_error(const char* s) : logic_error(s) {}
-    output_conversion_error(const uint8_t i) : logic_error(string("invalid conversion: ") + to_string(i)) {}
+    output_conversion_error(const uint8_t i) : logic_error(std::string("invalid conversion: ") + std::to_string(i)) {}
 };
 
-class output_underflow_error : public logic_error {
+class output_underflow_error : public std::logic_error {
 public:
-    output_underflow_error() : logic_error("underflow error") {}
-    output_underflow_error(const char* s) : logic_error(s) {}
+    output_underflow_error() : std::logic_error("underflow error") {}
+    output_underflow_error(const char* s) : std::logic_error(s) {}
 };
 
 struct unpacker_skip {};
@@ -39,7 +37,7 @@ constexpr unpacker_skip const skip{};
 
 class unpacker {
 public:
-    using buffer_type = vector<uint8_t>;
+    using buffer_type = std::vector<uint8_t>;
 
     enum data_type_t {
         T_UNKNOWN,
@@ -65,9 +63,9 @@ public:
     unpacker() : _it{ nullptr }, _it_end{ nullptr } {}
 
     unpacker(const buffer_type& buf)
-            : _buffer(make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
+            : _buffer(std::make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
     unpacker(buffer_type&& buf)
-            : _buffer(make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
+            : _buffer(std::make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
 
     inline unpacker& operator>>(bool& value);
     inline unpacker& operator>>(int8_t& value);
@@ -80,15 +78,15 @@ public:
     inline unpacker& operator>>(uint64_t& value);
     inline unpacker& operator>>(float& value);
     inline unpacker& operator>>(double& value);
-    inline unpacker& operator>>(string& value);
+    inline unpacker& operator>>(std::string& value);
     inline unpacker& operator>>(unpacker& value);
 
     inline unpacker& operator>>(const unpacker_skip) {
         return skip();
     }
 
-    template<typename T> unpacker& operator>>(vector<T>& vec);
-    template<typename K, typename V> unpacker& operator>>(map<K, V>& map);
+    template<typename T> unpacker& operator>>(std::vector<T>& vec);
+    template<typename K, typename V> unpacker& operator>>(std::map<K, V>& map);
 
     template <typename T> T get_value() {
         T val;
@@ -142,7 +140,7 @@ private:
         SFIXNINT = 36,
     };
 
-    shared_ptr<buffer_type> _buffer;
+    std::shared_ptr<buffer_type> _buffer;
     buffer_type::const_iterator _it;
     buffer_type::const_iterator _it_end;
 
@@ -351,8 +349,8 @@ unpacker& unpacker::operator>>(double& value) {
 }
 
 
-unpacker& unpacker::operator>>(string& value) {
-    iterator_traits<decltype(_it)>::difference_type len = get_string_length();
+unpacker& unpacker::operator>>(std::string& value) {
+    std::iterator_traits<decltype(_it)>::difference_type len = get_string_length();
 
     if (len > distance(_it, _it_end)) {
         output_underflow_error{};
@@ -372,7 +370,7 @@ unpacker& unpacker::operator>>(unpacker& value) {
     return *this;
 }
 
-template<typename T> unpacker& unpacker::operator>>(vector<T>& vec) {
+template<typename T> unpacker& unpacker::operator>>(std::vector<T>& vec) {
     const size_t len = get_array_length();
 
     for (size_t i = 0; i < len; ++i) {
@@ -384,7 +382,7 @@ template<typename T> unpacker& unpacker::operator>>(vector<T>& vec) {
     return *this;
 }
 
-template<typename K, typename V> unpacker& unpacker::operator>>(map<K, V>& map) {
+template<typename K, typename V> unpacker& unpacker::operator>>(std::map<K, V>& map) {
     const size_t len = get_map_length();
 
     for (size_t i = 0; i < len; ++i) {
@@ -558,9 +556,9 @@ const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     return (b <= 0x7f) ? SFIXINT : map_table[b - 0x80];
 }
 
-inline string to_string(const unpacker& value, size_t level = 0) {
+inline std::string to_string(const unpacker& value, size_t level = 0) {
     unpacker u { value };
-    string ret;
+    std::string ret;
 
     if(level == 0) {
         ret = '{';
@@ -605,11 +603,11 @@ inline string to_string(const unpacker& value, size_t level = 0) {
                 break;
 
             case unpacker::T_STRING:
-                ret += '"' + u.get_value<string>() + '"';
+                ret += '"' + u.get_value<std::string>() + '"';
                 break;
 
             case unpacker::T_ARRAY: {
-                vector<unpacker> v;
+                std::vector<unpacker> v;
 
                 u >> v;
                 ret += '[';
@@ -627,7 +625,7 @@ inline string to_string(const unpacker& value, size_t level = 0) {
                 break;
 
             case unpacker::T_MAP: {
-                map<string, unpacker> m;
+                std::map<std::string, unpacker> m;
 
                 u >> m;
                 ret += '{';
