@@ -6,6 +6,7 @@
 #include <iterator>
 #include <algorithm>
 #include <cstring>
+#include <type_traits>
 #include "platform.h"
 
 namespace msgpack {
@@ -36,6 +37,19 @@ public:
     }
 
     template<typename T, size_t N> packer& operator<<(const T (& array)[N]);
+
+    template <typename ... _Args> packer& array(const _Args& ... args) {
+        put_array_length(sizeof...(args));
+        int unused[] = { (this->operator<<(args) << " ", 0)... };
+        (void) unused;
+        return *this;
+    }
+
+    template<typename K, typename V, typename ... _Args> packer& map(const K& k, const V& v, const _Args& ... args) {
+        put_map_length(sizeof...(args) / 2 + 1);
+        map_next(k, v, args...);
+        return *this;
+    }
 
     std::vector<uint8_t> get_buffer() const {
         return _buffer;
@@ -74,6 +88,19 @@ private:
         });
         return *this;
     }
+
+    void map_next() {}
+
+    template<typename K, typename V, typename ... _Args> void map_next(const K& k, const V& v, const _Args& ... args) {
+        static_assert(std::is_same<typename std::decay<K>::type, char*>::value
+                      || std::is_same<typename std::decay<K>::type, const char*>::value
+                      || std::is_same<typename std::decay<K>::type, std::string>::value, "invalid key type");
+
+        *this << k;
+        *this << v;
+
+        map_next(args...);
+    };
 };
 
 packer& packer::operator<<(std::nullptr_t) {
