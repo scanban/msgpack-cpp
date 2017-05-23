@@ -40,7 +40,7 @@ public:
 
     template <typename ... _Args> packer& array(const _Args& ... args) {
         put_array_length(sizeof...(args));
-        int unused[] = { (this->operator<<(args) << " ", 0)... };
+        int unused[] = { (this->operator<<(args), 0)... };
         (void) unused;
         return *this;
     }
