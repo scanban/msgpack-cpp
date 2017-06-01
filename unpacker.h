@@ -446,8 +446,10 @@ size_t unpacker::get_array_length() {
     if (st == SFIXARR) {
         return get_byte() & 0xfu;
     } else if (st == SARR16) {
+        get_byte();
         return get_numeric<uint16_t>();
     } else if (st == SARR32) {
+        get_byte();
         return get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{};
@@ -460,8 +462,10 @@ size_t unpacker::get_map_length() {
     if (st == SFIXMAP) {
         return get_byte() & 0xfu;
     } else if (st == SMAP16) {
+        get_byte();
         return get_numeric<uint16_t>();
     } else if (st == SMAP32) {
+        get_byte();
         return get_numeric<uint32_t>();
     } else {
         throw output_conversion_error{};
