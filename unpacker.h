@@ -280,7 +280,7 @@ unpacker& unpacker::operator>>(uint16_t& value) {
 
     if (type() == T_UINT8 || st == SFIXINT) {
         value = get_value<uint8_t>();
-    } else if (st == SINT16) {
+    } else if (st == SUINT16) {
         get_byte();
         value = get_numeric<uint16_t>();
     } else {
