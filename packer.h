@@ -228,10 +228,13 @@ void packer::put_string_length(size_t length) {
     if (length < 32) {
         put_byte(uint8_t { 0xa0u } + static_cast<uint8_t>(length));
     } else if (length <= std::numeric_limits<uint8_t>::max()) {
+        put_byte(0xd9);
         put_byte(static_cast<uint8_t>(length));
     } else if (length <= std::numeric_limits<uint16_t>::max()) {
+        put_byte(0xda);
         put_numeric(static_cast<uint16_t>(length));
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
+        put_byte(0xdb);
         put_numeric(static_cast<uint32_t>(length));
     }
 }
@@ -240,8 +243,10 @@ void packer::put_array_length(size_t length) {
     if (length < 16) {
         put_byte(uint8_t { 0x90u } + static_cast<uint8_t>(length));
     } else if (length <= std::numeric_limits<uint16_t>::max()) {
+        put_byte(0xdc);
         put_numeric(static_cast<uint16_t>(length));
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
+        put_byte(0xdd);
         put_numeric(static_cast<uint32_t>(length));
     }
 }
@@ -250,8 +255,10 @@ void packer::put_map_length(size_t length) {
     if (length < 16) {
         put_byte(uint8_t { 0x80u } + static_cast<uint8_t>(length));
     } else if (length <= std::numeric_limits<uint16_t>::max()) {
+        put_byte(0xde);
         put_numeric(static_cast<uint16_t>(length));
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
+        put_byte(0xdf);
         put_numeric(static_cast<uint32_t>(length));
     }
 }
