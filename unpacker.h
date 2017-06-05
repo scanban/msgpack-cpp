@@ -60,11 +60,7 @@ public:
         T_MAP,
     };
 
-#ifdef _MSC_VER
-    unpacker() : _it{}, _it_end{} {}
-#else
-    unpacker() : _it{ nullptr }, _it_end{ nullptr } {}
-#endif
+    unpacker() = default;
 
     unpacker(const buffer_type& buf)
             : _buffer(std::make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
