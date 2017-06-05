@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 #include <type_traits>
+#include <vector>
 #include "platform.h"
 
 namespace msgpack {
