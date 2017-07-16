@@ -85,7 +85,10 @@ public:
         return skip();
     }
 
+    template<typename T, typename F> unpacker& for_each(F f);
     template<typename T> unpacker& operator>>(std::vector<T>& vec);
+
+    template<typename K, typename V, typename F> unpacker& for_each(F f);
     template<typename K, typename V> unpacker& operator>>(std::map<K, V>& map);
 
     template <typename T> T get_value() {
@@ -370,19 +373,28 @@ unpacker& unpacker::operator>>(unpacker& value) {
     return *this;
 }
 
-template<typename T> unpacker& unpacker::operator>>(std::vector<T>& vec) {
+template<typename T, typename F> unpacker& unpacker::for_each(F f) {
+    if(type() != T_ARRAY) { throw output_conversion_error("type is not an array"); }
+
     const size_t len = get_array_length();
 
     for (size_t i = 0; i < len; ++i) {
         T val;
         *this >> val;
-        vec.emplace_back(std::move(val));
+        f(val);
     }
 
     return *this;
 }
+template<typename T> unpacker& unpacker::operator>>(std::vector<T>& vec) {
+    return for_each<T>([&vec](T v) {
+        vec.emplace_back(std::move(v));
+    });
+}
 
-template<typename K, typename V> unpacker& unpacker::operator>>(std::map<K, V>& map) {
+template<typename K, typename V, typename F> unpacker& unpacker::for_each(F f) {
+    if(type() != T_MAP) { throw output_conversion_error("type is not a map"); }
+
     const size_t len = get_map_length();
 
     for (size_t i = 0; i < len; ++i) {
@@ -390,10 +402,16 @@ template<typename K, typename V> unpacker& unpacker::operator>>(std::map<K, V>& 
         V value;
         *this >> key;
         *this >> value;
-        map.emplace(std::make_pair(std::move(key), std::move(value)));
+        f(key, value);
     }
 
     return *this;
+}
+
+template<typename K, typename V> unpacker& unpacker::operator>>(std::map<K, V>& map) {
+    return for_each<K, V>([&map](K k, V v){
+        map.emplace(std::make_pair(std::move(k), std::move(v)));
+    });
 }
 
 const unpacker::data_type_t unpacker::type() const {
