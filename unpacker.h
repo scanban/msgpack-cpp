@@ -22,14 +22,14 @@ namespace msgpack {
 class output_conversion_error : public std::logic_error {
 public:
     output_conversion_error() : logic_error("unknown conversion error") {}
-    output_conversion_error(const char* s) : logic_error(s) {}
-    output_conversion_error(const uint8_t i) : logic_error(std::string("invalid conversion: ") + std::to_string(i)) {}
+    explicit output_conversion_error(const char* s) : logic_error(s) {}
+    explicit output_conversion_error(const uint8_t i) : logic_error(std::string("invalid conversion: ") + std::to_string(i)) {}
 };
 
 class output_underflow_error : public std::logic_error {
 public:
     output_underflow_error() : std::logic_error("underflow error") {}
-    output_underflow_error(const char* s) : std::logic_error(s) {}
+    explicit output_underflow_error(const char* s) : std::logic_error(s) {}
 };
 
 struct unpacker_skip {};
@@ -62,9 +62,9 @@ public:
 
     unpacker() = default;
 
-    unpacker(const buffer_type& buf)
+    explicit unpacker(const buffer_type& buf)
             : _buffer(std::make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
-    unpacker(buffer_type&& buf)
+    explicit unpacker(buffer_type&& buf)
             : _buffer(std::make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
 
     inline unpacker& operator>>(bool& value);
@@ -149,12 +149,12 @@ private:
 
     uint8_t peek_byte() const {
         if (_it != _it_end) { return *_it; }
-        else { throw output_underflow_error{}; }
+        throw output_underflow_error{};
     }
 
     uint8_t get_byte() {
         if (_it != _it_end) { return *_it++; }
-        else { throw output_underflow_error(); }
+        throw output_underflow_error();
     }
 
     void skip_bytes(size_t count) {
@@ -459,15 +459,17 @@ size_t unpacker::get_array_length() {
 
     if (st == SFIXARR) {
         return get_byte() & 0xfu;
-    } else if (st == SARR16) {
+    }
+    if (st == SARR16) {
         get_byte();
         return get_numeric<uint16_t>();
-    } else if (st == SARR32) {
+    }
+    if (st == SARR32) {
         get_byte();
         return get_numeric<uint32_t>();
-    } else {
-        throw output_conversion_error{};
     }
+
+    throw output_conversion_error{};
 }
 
 size_t unpacker::get_map_length() {
@@ -475,15 +477,17 @@ size_t unpacker::get_map_length() {
 
     if (st == SFIXMAP) {
         return get_byte() & 0xfu;
-    } else if (st == SMAP16) {
+    }
+    if (st == SMAP16) {
         get_byte();
         return get_numeric<uint16_t>();
-    } else if (st == SMAP32) {
+    }
+    if (st == SMAP32) {
         get_byte();
         return get_numeric<uint32_t>();
-    } else {
-        throw output_conversion_error{};
     }
+
+    throw output_conversion_error{};
 }
 
 unpacker& unpacker::skip() {
@@ -575,7 +579,7 @@ const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     };
     // @formatter:on
 
-    return (b <= 0x7f) ? SFIXINT : map_table[b - 0x80];
+    return static_cast<const storage_type_t>((b <= 0x7f) ? SFIXINT : map_table[b - 0x80]);
 }
 
 inline std::string to_string(const unpacker& value, size_t level = 0) {
