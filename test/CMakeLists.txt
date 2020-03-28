@@ -6,6 +6,8 @@ ExternalProject_Add(
             GIT_REPOSITORY https://github.com/google/googletest.git
             GIT_TAG        release-1.8.1
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+            # set the same compiler, travis has updated compilers
+            CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
             # Disable install step
             INSTALL_COMMAND ""
 )
