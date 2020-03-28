@@ -1,23 +1,15 @@
 find_package(Threads REQUIRED)
 include(ExternalProject)
 
-if (ENABLE_TRAVIS)
-    ExternalProject_Add(
+ExternalProject_Add(
             gtest
             GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG        release-1.8.1
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
             # Disable install step
             INSTALL_COMMAND ""
-    )
-else ()
-    ExternalProject_Add(
-            gtest
-            URL https://github.com/google/googletest/archive/master.zip
-            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-            # Disable install step
-            INSTALL_COMMAND ""
-    )
-endif ()
+)
+
 # Get GTest source and binary directories from CMake project
 ExternalProject_Get_Property(gtest source_dir binary_dir)
 
