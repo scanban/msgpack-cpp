@@ -79,6 +79,7 @@ public:
     inline unpacker& operator>>(float& value);
     inline unpacker& operator>>(double& value);
     inline unpacker& operator>>(std::string& value);
+    inline unpacker& operator>>(std::wstring& value);
     inline unpacker& operator>>(unpacker& value);
 
     inline unpacker& operator>>(const unpacker_skip) {
@@ -362,6 +363,18 @@ unpacker& unpacker::operator>>(std::string& value) {
     value.append(_it, _it + len);
     _it += len;
 
+    return *this;
+}
+
+unpacker& unpacker::operator>>(std::wstring& value) {
+
+    const auto len = get_string_length();
+    value.clear();
+
+    for(size_t i =0 ; i <len; ++i) {
+        auto ch = this->get_numeric<wchar_t>();
+        value.push_back(ch);
+    }
     return *this;
 }
 

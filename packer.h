@@ -30,6 +30,7 @@ public:
     inline packer& operator<<(const double value);
     inline packer& operator<<(const std::string& str);
     inline packer& operator<<(const char* str);
+    inline packer& operator<<(const std::wstring& str);
     inline packer& operator<<(const packer& value);
 
     template <typename T> typename std::enable_if<! std::is_fundamental<T>::value, packer&>::type
@@ -191,6 +192,15 @@ packer& packer::operator<<(const std::string& str) {
     put_string_length(str.length());
     std::copy(str.data(), str.data() + str.length(), back_inserter(_buffer));
 
+    return *this;
+}
+
+packer& packer::operator<<(const std::wstring& str) {
+
+    put_string_length(str.length());
+    std::for_each(str.cbegin(), str.cend(), [this](const wchar_t& ch) {
+        this->put_numeric(ch);
+    });
     return *this;
 }
 
