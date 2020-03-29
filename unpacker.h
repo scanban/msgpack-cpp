@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <codecvt>
 #include "platform.h"
 
 namespace msgpack {
@@ -79,6 +80,7 @@ public:
     inline unpacker& operator>>(float& value);
     inline unpacker& operator>>(double& value);
     inline unpacker& operator>>(std::string& value);
+    inline unpacker& operator>>(std::wstring& value);
     inline unpacker& operator>>(unpacker& value);
 
     inline unpacker& operator>>(const unpacker_skip) {
@@ -364,6 +366,17 @@ unpacker& unpacker::operator>>(std::string& value) {
 
     return *this;
 }
+
+unpacker& unpacker::operator >>(std::wstring& value) {
+    std::string buf;
+    *this >> buf;
+
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+    value = cvt.from_bytes(buf);
+
+    return *this;
+}
+
 
 unpacker& unpacker::operator>>(unpacker& value) {
     value._buffer = _buffer;

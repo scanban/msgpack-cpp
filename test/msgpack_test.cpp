@@ -140,13 +140,35 @@ TEST(MSGPACK_PACKER_BASE, msgpack_double) {
 
 }
 
-TEST(MSGPACK_PACKER_BASE, msgpack_str) {
+TEST(MSGPACK_PACKER_BASE, msgpack_str_char_ptr) {
     packer p;
     p << "test";
 
     unpacker u{ p.get_buffer() };
     EXPECT_EQ(u.type(), unpacker::T_STRING);
     EXPECT_EQ(get_value<string>(u), "test");
+
+    EXPECT_TRUE(u.empty());
+}
+
+TEST(MSGPACK_PACKER_BASE, msgpack_str_string) {
+    packer p;
+    p << std::string("test");
+
+    unpacker u {p.get_buffer()};
+    EXPECT_EQ(u.type(), unpacker::T_STRING);
+    EXPECT_EQ(get_value<string>(u), "test");
+
+    EXPECT_TRUE(u.empty());
+}
+
+TEST(MSGPACK_PACKER_BASE, msgpack_str_wstring) {
+    packer p;
+    p << std::wstring(L"überprüfen");
+
+    unpacker u {p.get_buffer()};
+    EXPECT_EQ(u.type(), unpacker::T_STRING);
+    EXPECT_EQ(get_value<std::wstring>(u), L"überprüfen");
 
     EXPECT_TRUE(u.empty());
 }
@@ -226,6 +248,13 @@ TEST(MSGPACK_PACKER_BASE, msgpack_unpack_skip) {
                        { 3, 30 }};
 
     TEST_SKIP(m);
+
+    std::string s{"test"};
+    TEST_SKIP(s);
+
+    std::wstring ws{L"überprüfen"};
+    TEST_SKIP(ws);
+
 }
 
 TEST(MSGPACK_PACKER_BASE, msgpack_unpack_unpacker_simple) {

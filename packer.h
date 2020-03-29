@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <vector>
 #include "platform.h"
+#include <codecvt>
 
 namespace msgpack {
 
@@ -29,6 +30,7 @@ public:
     inline packer& operator<<(const float value);
     inline packer& operator<<(const double value);
     inline packer& operator<<(const std::string& str);
+    inline packer& operator<<(const std::wstring& str);
     inline packer& operator<<(const char* str);
     inline packer& operator<<(const packer& value);
 
@@ -192,6 +194,11 @@ packer& packer::operator<<(const std::string& str) {
     std::copy(str.data(), str.data() + str.length(), back_inserter(_buffer));
 
     return *this;
+}
+
+packer& packer::operator <<(const std::wstring& str) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+    return *this << cvt.to_bytes(str);
 }
 
 packer& packer::operator<<(const char* str) {
