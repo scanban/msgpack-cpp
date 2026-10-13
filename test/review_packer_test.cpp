@@ -118,15 +118,17 @@ TEST(Review_F24, null_cstr_encodes_nil) {
 }
 
 // ---- F25: str_printf<0> must terminate.
-#include <csignal>
-TEST(Review_F25, str_printf_N0_terminates) {
-    EXPECT_EXIT({
+// The body lives in a function: preprocessor directives inside a macro argument
+// (EXPECT_EXIT) are undefined behaviour and rejected by MSVC.
+static void str_printf_N0_then_exit() {
 #ifndef _WIN32
-        alarm(2);  // watchdog: a regression would hang instead of failing
+    alarm(2);  // watchdog: a regression would hang instead of failing
 #endif
-        std::string s = platform::str_printf<0>("%d", 1);
-        std::exit(0);
-    }, ::testing::ExitedWithCode(0), "");
+    std::string s = platform::str_printf<0>("%d", 1);
+    std::exit(s == "1" ? 0 : 3);
+}
+TEST(Review_F25, str_printf_N0_terminates) {
+    EXPECT_EXIT(str_printf_N0_then_exit(), ::testing::ExitedWithCode(0), "");
 }
 
 int main(int argc, char** argv) {
