@@ -57,7 +57,7 @@ public:
     explicit unpacker(const buffer_type& buf)
             : _buffer(std::make_shared<buffer_type>(buf)), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
     explicit unpacker(buffer_type&& buf)
-            : _buffer(std::make_shared<buffer_type>(move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
+            : _buffer(std::make_shared<buffer_type>(std::move(buf))), _it{ _buffer->cbegin() }, _it_end{ _buffer->cend() } {}
 
     inline unpacker& operator>>(bool& value);
     inline unpacker& operator>>(int8_t& value);
