@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-set(INCLUDE_FILES unpacker.h packer.h)
+set(INCLUDE_FILES unpacker.h packer.h platform.h)
 configure_file("msgpack-cpp.pc.in" "msgpack-cpp.pc" @ONLY)
 
 if (ENABLE_TESTING)
@@ -22,4 +22,4 @@ if (ENABLE_BENCHMARKING)
 endif ()
 
 install(FILES ${INCLUDE_FILES} DESTINATION include)
-install(FILES "${CMAKE_BINARY_DIR}/msgpack.pc" DESTINATION lib/pkgconfig)
+install(FILES "${CMAKE_BINARY_DIR}/msgpack-cpp.pc" DESTINATION lib/pkgconfig)
