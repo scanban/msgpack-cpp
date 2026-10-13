@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/scanban/msgpack-cpp.svg?branch=master)](https://travis-ci.org/scanban/msgpack-cpp)
+[![CI](https://github.com/scanban/msgpack-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/scanban/msgpack-cpp/actions/workflows/ci.yml)
 
 What is msgpack-cpp ?
 ===============
@@ -16,6 +16,13 @@ Installation
     cd build
     cmake ..
     make && make install
+
+Running tests
+===============
+
+    cmake -S . -B build -DENABLE_TESTING=ON
+    cmake --build build
+    ctest --test-dir build
 
 Examples
 ===============
