@@ -4,7 +4,7 @@ include(ExternalProject)
 ExternalProject_Add(
             gtest
             GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG        release-1.8.1
+            GIT_TAG        release-1.12.1
             PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
             # set the same compiler, travis has updated compilers
             CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
@@ -21,7 +21,7 @@ add_dependencies(libgtest gtest)
 
 # Set libgtest properties
 set_target_properties(libgtest PROPERTIES
-        "IMPORTED_LOCATION" "${binary_dir}/googlemock/gtest/libgtest.a"
+        "IMPORTED_LOCATION" "${binary_dir}/lib/libgtest.a"
         "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
         )
 
@@ -31,7 +31,7 @@ add_dependencies(libgmock gtest)
 
 # Set libgmock properties
 set_target_properties(libgmock PROPERTIES
-        "IMPORTED_LOCATION" "${binary_dir}/googlemock/libgmock.a"
+        "IMPORTED_LOCATION" "${binary_dir}/lib/libgmock.a"
         "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
         )
 
