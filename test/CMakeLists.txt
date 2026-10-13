@@ -1,45 +1,17 @@
-find_package(Threads REQUIRED)
-include(ExternalProject)
+include(FetchContent)
 
-ExternalProject_Add(
-            gtest
-            GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG        release-1.12.1
-            PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-            # set the same compiler, travis has updated compilers
-            CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-            # Disable install step
-            INSTALL_COMMAND ""
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        release-1.12.1
+        GIT_SHALLOW    TRUE
 )
+# use the same (shared) C runtime as the tests on MSVC and keep gtest out of `make install`
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
-# Get GTest source and binary directories from CMake project
-ExternalProject_Get_Property(gtest source_dir binary_dir)
-
-# Create a libgtest target to be used as a dependency by test programs
-add_library(libgtest IMPORTED STATIC GLOBAL)
-add_dependencies(libgtest gtest)
-
-# Set libgtest properties
-set_target_properties(libgtest PROPERTIES
-        "IMPORTED_LOCATION" "${binary_dir}/lib/libgtest.a"
-        "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
-        )
-
-# Create a libgmock target to be used as a dependency by test programs
-add_library(libgmock IMPORTED STATIC GLOBAL)
-add_dependencies(libgmock gtest)
-
-# Set libgmock properties
-set_target_properties(libgmock PROPERTIES
-        "IMPORTED_LOCATION" "${binary_dir}/lib/libgmock.a"
-        "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
-        )
-
-# I couldn't make it work with INTERFACE_INCLUDE_DIRECTORIES
-include_directories("${source_dir}/googletest/include"
-        "${source_dir}/googlemock/include")
-
-set(GTEST_LIBRARIES libgtest libgmock)
+set(GTEST_LIBRARIES GTest::gtest GTest::gmock)
 
 set(TEST_PROGRAMS msgpack_test.cpp review_unpacker_test.cpp review_packer_test.cpp)
 set(INCLUDES ../packer.h ../unpacker.h ../msgpack-platform.h)
@@ -51,24 +23,16 @@ foreach (source_file ${TEST_PROGRAMS})
             ${source_file}
             ${INCLUDES}
     )
-    target_link_libraries(${test_name}
-            ${GTEST_LIBRARIES}
-            ${CMAKE_THREAD_LIBS_INIT}
-            )
+    target_link_libraries(${test_name} ${GTEST_LIBRARIES})
     target_include_directories(${test_name} PUBLIC ${CMAKE_SOURCE_DIR})
     add_test(${test_name} ${test_name})
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        set_property(TARGET ${test_name} APPEND_STRING PROPERTY COMPILE_FLAGS "-Wall -Wextra -Werror")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(${test_name} PRIVATE -Wall -Wextra -Werror)
     endif ()
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        set_property(TARGET ${test_name} APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-mismatched-tags")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(${test_name} PRIVATE -Wno-mismatched-tags)
     endif ()
-
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        if (CMAKE_CXX_FLAGS MATCHES "/W[0-4] /WX")
-            string(REGEX REPLACE "/W[0-4]" "/W3 /WX" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        else ()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
-        endif ()
+    if (MSVC)
+        target_compile_options(${test_name} PRIVATE /W3 /WX)
     endif ()
 endforeach ()
