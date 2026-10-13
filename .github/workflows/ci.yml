@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "gcc-9 (Release)",     os: ubuntu-22.04,   cc: gcc-9,    cxx: g++-9,      build_type: Release }
+          - { name: "gcc-9 (Release)",     os: ubuntu-22.04,   cc: gcc-9,    cxx: g++-9,      build_type: Release, install: g++-9 }
           - { name: "gcc-14 (Release)",    os: ubuntu-24.04,   cc: gcc-14,   cxx: g++-14,     build_type: Release }
           - { name: "gcc-14 (Debug)",      os: ubuntu-24.04,   cc: gcc-14,   cxx: g++-14,     build_type: Debug }
           - { name: "clang-13 (Release)",  os: ubuntu-22.04,   cc: clang-13, cxx: clang++-13, build_type: Release }
@@ -29,6 +29,10 @@ jobs:
           - { name: "MSVC (Release)",      os: windows-latest, cc: "",       cxx: "",         build_type: Release }
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install compiler
+        if: matrix.install
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ${{ matrix.install }}
 
       - name: Configure
         shell: bash
