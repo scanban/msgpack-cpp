@@ -41,7 +41,7 @@ include_directories("${source_dir}/googletest/include"
 
 set(GTEST_LIBRARIES libgtest libgmock)
 
-set(TEST_PROGRAMS msgpack_test.cpp)
+set(TEST_PROGRAMS msgpack_test.cpp review_unpacker_test.cpp review_packer_test.cpp)
 set(INCLUDES ../packer.h ../unpacker.h ../platform.h)
 
 foreach (source_file ${TEST_PROGRAMS})
