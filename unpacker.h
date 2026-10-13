@@ -1,7 +1,11 @@
 #ifndef MSGPACK_UNPACKER_H
 #define MSGPACK_UNPACKER_H
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <stdexcept>
+#include <utility>
 #include <string>
 #include <iterator>
 #include <algorithm>
@@ -14,24 +18,11 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
-#include <string>
-#include <codecvt>
 #include "platform.h"
 
 namespace msgpack {
 
-class output_conversion_error : public std::logic_error {
-public:
-    output_conversion_error() : logic_error("unknown conversion error") {}
-    explicit output_conversion_error(const char* s) : logic_error(s) {}
-    explicit output_conversion_error(const uint8_t i) : logic_error(std::string("invalid conversion: ") + std::to_string(i)) {}
-};
-
-class output_underflow_error : public std::logic_error {
-public:
-    output_underflow_error() : std::logic_error("underflow error") {}
-    explicit output_underflow_error(const char* s) : std::logic_error(s) {}
-};
+// output_conversion_error and output_underflow_error are defined in platform.h
 
 struct unpacker_skip {};
 constexpr unpacker_skip const skip{};
@@ -100,8 +91,12 @@ public:
     }
 
     bool empty() const { return _it == _it_end; }
-    inline const data_type_t type() const;
+    inline data_type_t type() const;
     inline unpacker& skip();
+
+    // Maximum nesting depth of arrays/maps accepted by skip() and to_string(); deeper input is rejected
+    // with output_conversion_error instead of exhausting the stack by unbounded recursion.
+    static constexpr size_t max_nesting_depth() { return 512; }
 
 private:
     enum storage_type_t : uint8_t {
@@ -160,9 +155,11 @@ private:
     }
 
     void skip_bytes(size_t count) {
-        if (_it + count > _it_end) { throw output_underflow_error(); }
-        _it += count;
+        if (count > static_cast<size_t>(_it_end - _it)) { throw output_underflow_error(); }
+        _it += static_cast<buffer_type::difference_type>(count);
     }
+
+    inline void skip_value(size_t depth);
 
     inline size_t get_string_length();
 
@@ -177,9 +174,14 @@ private:
         } cvt;
         for (uint8_t& b : cvt.bytes) { b = get_byte(); }
         return platform::ntoh(cvt.data);
-    };
+    }
 
-    inline static const storage_type_t storage_type(uint8_t b);
+    inline static storage_type_t storage_type(uint8_t b);
+
+    // Well defined conversion of a raw byte to a two's complement int8_t
+    static int8_t to_int8(uint8_t b) {
+        return static_cast<int8_t>(b < 0x80 ? b : int(b) - 256);
+    }
 };
 
 unpacker& unpacker::operator>>(bool& value) {
@@ -201,10 +203,10 @@ unpacker& unpacker::operator>>(int8_t& value) {
     const storage_type_t st = storage_type(peek_byte());
 
     if (st == SFIXINT || st == SFIXNINT) {
-        value = get_byte();
+        value = to_int8(get_byte());
     } else if (st == SINT8) {
         get_byte();
-        value = get_byte();
+        value = to_int8(get_byte());
     } else {
         throw output_conversion_error{ peek_byte() };
     }
@@ -355,34 +357,96 @@ unpacker& unpacker::operator>>(double& value) {
 
 
 unpacker& unpacker::operator>>(std::string& value) {
-    std::iterator_traits<decltype(_it)>::difference_type len = get_string_length();
+    const size_t len = get_string_length();
 
-    if (len > distance(_it, _it_end)) {
+    if (len > static_cast<size_t>(_it_end - _it)) {
         throw output_underflow_error{};
     }
-    value.clear();
-    value.append(_it, _it + len);
-    _it += len;
+    const buffer_type::const_iterator str_end = _it + static_cast<buffer_type::difference_type>(len);
+    value.assign(_it, str_end);
+    _it = str_end;
 
     return *this;
 }
 
 unpacker& unpacker::operator >>(std::wstring& value) {
+    const buffer_type::const_iterator start = _it;
     std::string buf;
     *this >> buf;
 
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-    value = cvt.from_bytes(buf);
+    // strict UTF-8 decoder (RFC 3629), mirrors the encoder in packer
+    std::wstring out;
+    out.reserve(buf.length());
+    const size_t n = buf.length();
+    size_t i = 0;
+    while (i < n) {
+        const uint32_t b0 = static_cast<unsigned char>(buf[i]);
+        uint32_t cp;
+        size_t extra;
+        uint32_t min_cp;
+        if (b0 < 0x80u) {
+            cp = b0;
+            extra = 0;
+            min_cp = 0;
+        } else if (b0 >= 0xc2u && b0 <= 0xdfu) {
+            cp = b0 & 0x1fu;
+            extra = 1;
+            min_cp = 0x80u;
+        } else if (b0 >= 0xe0u && b0 <= 0xefu) {
+            cp = b0 & 0x0fu;
+            extra = 2;
+            min_cp = 0x800u;
+        } else if (b0 >= 0xf0u && b0 <= 0xf4u) {
+            cp = b0 & 0x07u;
+            extra = 3;
+            min_cp = 0x10000u;
+        } else {
+            // stray continuation byte, 0xc0, 0xc1 or 0xf5..0xff
+            _it = start;
+            throw output_conversion_error("invalid utf-8 string");
+        }
+        if (extra > n - i - 1) {
+            // truncated sequence
+            _it = start;
+            throw output_conversion_error("invalid utf-8 string");
+        }
+        for (size_t k = 1; k <= extra; ++k) {
+            const uint32_t b = static_cast<unsigned char>(buf[i + k]);
+            if ((b & 0xc0u) != 0x80u) {
+                _it = start;
+                throw output_conversion_error("invalid utf-8 string");
+            }
+            cp = (cp << 6) | (b & 0x3fu);
+        }
+        if (cp < min_cp || (cp >= 0xd800u && cp <= 0xdfffu) || cp > 0x10ffffu) {
+            // overlong form, surrogate or out of range
+            _it = start;
+            throw output_conversion_error("invalid utf-8 string");
+        }
+        i += extra + 1;
+        if (sizeof(wchar_t) == 2 && cp >= 0x10000u) {
+            // 16-bit wchar_t (UTF-16): emit a surrogate pair
+            cp -= 0x10000u;
+            out.push_back(static_cast<wchar_t>(0xd800u + (cp >> 10)));
+            out.push_back(static_cast<wchar_t>(0xdc00u + (cp & 0x3ffu)));
+        } else {
+            out.push_back(static_cast<wchar_t>(cp));
+        }
+    }
+    value.swap(out);
 
     return *this;
 }
 
 
 unpacker& unpacker::operator>>(unpacker& value) {
-    value._buffer = _buffer;
-    value._it = _it;
+    // skip() is atomic and may throw, so modify the target only after it succeeded
+    const buffer_type::const_iterator start = _it;
     skip();
-    value._it_end = _it;
+    const buffer_type::const_iterator end = _it;
+    value._buffer = _buffer;
+    value._it = start;
+    value._it_end = end;
     return *this;
 }
 
@@ -427,7 +491,7 @@ template<typename K, typename V> unpacker& unpacker::operator>>(std::map<K, V>& 
     });
 }
 
-const unpacker::data_type_t unpacker::type() const {
+unpacker::data_type_t unpacker::type() const {
     // @formatter:off
         static const data_type_t map_table[] {
                 /*  0 */ T_UNKNOWN, T_INT8, T_ARRAY, T_MAP, T_STRING, T_NULL, T_BOOLEAN, T_BOOLEAN,
@@ -504,6 +568,20 @@ size_t unpacker::get_map_length() {
 }
 
 unpacker& unpacker::skip() {
+    // On failure the position is restored, so a failed skip() does not consume any input
+    const buffer_type::const_iterator start = _it;
+    try {
+        skip_value(0);
+    } catch (...) {
+        _it = start;
+        throw;
+    }
+    return *this;
+}
+
+void unpacker::skip_value(const size_t depth) {
+    if (depth > max_nesting_depth()) { throw output_conversion_error("nesting is too deep"); }
+
     switch (storage_type(peek_byte())) {
         case STRUE:
         case SFALSE:
@@ -542,12 +620,73 @@ unpacker& unpacker::skip() {
             skip_bytes(get_string_length());
             break;
 
+        case SBIN8:
+            get_byte();
+            skip_bytes(get_byte());
+            break;
+
+        case SBIN16:
+            get_byte();
+            skip_bytes(get_numeric<uint16_t>());
+            break;
+
+        case SBIN32:
+            get_byte();
+            skip_bytes(get_numeric<uint32_t>());
+            break;
+
+        // ext8/16/32: length, 1 type byte, data
+        case SEXT8: {
+            get_byte();
+            const size_t len = get_byte();
+            skip_bytes(1);
+            skip_bytes(len);
+        }
+            break;
+
+        case SEXT16: {
+            get_byte();
+            const size_t len = get_numeric<uint16_t>();
+            skip_bytes(1);
+            skip_bytes(len);
+        }
+            break;
+
+        case SEXT32: {
+            get_byte();
+            const size_t len = get_numeric<uint32_t>();
+            skip_bytes(1);
+            skip_bytes(len);
+        }
+            break;
+
+        // fixext1/2/4/8/16: 1 format byte, 1 type byte, 1/2/4/8/16 data bytes
+        case SFEXT1:
+            skip_bytes(3);
+            break;
+
+        case SFEXT2:
+            skip_bytes(4);
+            break;
+
+        case SFEXT4:
+            skip_bytes(6);
+            break;
+
+        case SFEXT8:
+            skip_bytes(10);
+            break;
+
+        case SFEXT16:
+            skip_bytes(18);
+            break;
+
         case SFIXARR:
         case SARR16:
         case SARR32: {
             const size_t len = get_array_length();
             for (size_t i = 0; i < len; ++i) {
-                skip();
+                skip_value(depth + 1);
             }
         }
             break;
@@ -557,8 +696,8 @@ unpacker& unpacker::skip() {
         case SMAP32: {
             const size_t len = get_map_length();
             for (size_t i = 0; i < len; ++i) {
-                skip();
-                skip();
+                skip_value(depth + 1);
+                skip_value(depth + 1);
             }
         }
             break;
@@ -566,11 +705,10 @@ unpacker& unpacker::skip() {
         default:
             throw output_conversion_error{ peek_byte() };
     }
-    return *this;
 }
 
 
-const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
+unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     // @formatter:off
     static const storage_type_t map_table[128] = {
             /* 0x80 */  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,  SFIXMAP,
@@ -592,10 +730,12 @@ const unpacker::storage_type_t unpacker::storage_type(uint8_t b) {
     };
     // @formatter:on
 
-    return static_cast<const storage_type_t>((b <= 0x7f) ? SFIXINT : map_table[b - 0x80]);
+    return static_cast<storage_type_t>((b <= 0x7f) ? SFIXINT : map_table[b - 0x80]);
 }
 
 inline std::string to_string(const unpacker& value, size_t level = 0) {
+    if (level > unpacker::max_nesting_depth()) { throw output_conversion_error("nesting is too deep"); }
+
     unpacker u { value };
     std::string ret;
 
@@ -664,13 +804,16 @@ inline std::string to_string(const unpacker& value, size_t level = 0) {
                 break;
 
             case unpacker::T_MAP: {
-                std::map<std::string, unpacker> m;
+                // map keys may be of any type, keys are rendered the same way as values
+                std::vector<std::pair<unpacker, unpacker>> m;
 
-                u >> m;
+                u.for_each<unpacker, unpacker>([&m](unpacker k, unpacker v) {
+                    m.emplace_back(std::move(k), std::move(v));
+                });
                 ret += '{';
 
                 for (const auto& e: m) {
-                    ret += '"' + e.first + '"' + ':' + to_string(e.second, level + 1) + ',';
+                    ret += to_string(e.first, level + 1) + ':' + to_string(e.second, level + 1) + ',';
                 }
 
                 if(m.empty()) {
@@ -691,7 +834,9 @@ inline std::string to_string(const unpacker& value, size_t level = 0) {
         }
         ret += ',';
     }
-    ret.pop_back();
+    if (!ret.empty() && ret.back() == ',') {
+        ret.pop_back();
+    }
 
     if(level == 0) {
         ret += '}';

@@ -45,11 +45,26 @@
 # define PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_4(x) _byteswap_ulong(x)
 # define PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8(x) _byteswap_uint64(x)
 #else
+// No intrinsics: use the portable shift based implementations from platform::detail (see below)
 # define PLATFORM_ENDIAN_NO_INTRINSICS
 # define PLATFORM_ENDIAN_INTRINSIC_MSG "no byte swap intrinsics"
+# define PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_2(x) ::platform::detail::portable_byte_swap_2(x)
+# define PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_4(x) ::platform::detail::portable_byte_swap_4(x)
+# define PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8(x) ::platform::detail::portable_byte_swap_8(x)
 #endif
 
-#if defined(__linux__)
+// Prefer the compiler provided byte order, fall back to OS specific headers
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && defined(__ORDER_LITTLE_ENDIAN__)
+#   if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#       define  PLATFORM_BIG_ENDIAN    1
+#       define  PLATFORM_LITTLE_ENDIAN 0
+#   elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#       define  PLATFORM_BIG_ENDIAN    0
+#       define  PLATFORM_LITTLE_ENDIAN 1
+#   else
+#       error "Unsupported OS endianness"
+#   endif
+#elif defined(__linux__)
 #   include <endian.h>
 #   if __BYTE_ORDER == __BIG_ENDIAN
 #       define  PLATFORM_BIG_ENDIAN    1
@@ -79,8 +94,42 @@
 #include <type_traits>
 #include <string>
 #include <cstdio>
+#include <cstring>
+#include <stdexcept>
+
+namespace msgpack {
+
+class output_conversion_error : public std::logic_error {
+public:
+    output_conversion_error() : logic_error("unknown conversion error") {}
+    explicit output_conversion_error(const char* s) : logic_error(s) {}
+    explicit output_conversion_error(const uint8_t i) : logic_error(std::string("invalid conversion: ") + std::to_string(i)) {}
+};
+
+class output_underflow_error : public std::logic_error {
+public:
+    output_underflow_error() : std::logic_error("underflow error") {}
+    explicit output_underflow_error(const char* s) : std::logic_error(s) {}
+};
+
+}
 
 namespace platform {
+namespace detail {
+constexpr uint16_t portable_byte_swap_2(const uint16_t x) {
+    return static_cast<uint16_t>(((x & 0x00ffu) << 8) | ((x & 0xff00u) >> 8));
+}
+constexpr uint32_t portable_byte_swap_4(const uint32_t x) {
+    return ((x & 0x000000ffu) << 24) | ((x & 0x0000ff00u) << 8) | ((x & 0x00ff0000u) >> 8) | ((x & 0xff000000u) >> 24);
+}
+constexpr uint64_t portable_byte_swap_8(const uint64_t x) {
+    return ((x & 0x00000000000000ffull) << 56) | ((x & 0x000000000000ff00ull) << 40) |
+           ((x & 0x0000000000ff0000ull) << 24) | ((x & 0x00000000ff000000ull) << 8) |
+           ((x & 0x000000ff00000000ull) >> 8) | ((x & 0x0000ff0000000000ull) >> 24) |
+           ((x & 0x00ff000000000000ull) >> 40) | ((x & 0xff00000000000000ull) >> 56);
+}
+}
+
 template<typename T> constexpr typename std::enable_if<sizeof(T) == 1, T>::type byte_swap(const T t) {
     return t;
 }
@@ -94,12 +143,20 @@ template<typename T> constexpr typename std::enable_if<sizeof(T) == 8, T>::type 
     return (T) (PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8((uint64_t) t));
 }
 inline float byte_swap(const float t) {
-    uint32_t tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_4(*((uint32_t*) &t));
-    return *((float*) &tmp);
+    uint32_t tmp;
+    std::memcpy(&tmp, &t, sizeof(tmp));
+    tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_4(tmp);
+    float ret;
+    std::memcpy(&ret, &tmp, sizeof(ret));
+    return ret;
 }
 inline double byte_swap(const double t) {
-    uint64_t tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8(*((uint64_t*) &t));
-    return *((double*) &tmp);
+    uint64_t tmp;
+    std::memcpy(&tmp, &t, sizeof(tmp));
+    tmp = PLATFORM_ENDIAN_INTRINSIC_BYTE_SWAP_8(tmp);
+    double ret;
+    std::memcpy(&ret, &tmp, sizeof(ret));
+    return ret;
 }
 
 #if PLATFORM_BIG_ENDIAN
@@ -130,10 +187,12 @@ template<std::string::size_type N = 128, typename ... Args> std::string str_prin
     std::string out;
     int size_used;
 
-    for (std::string::size_type size_needed = N;; size_needed += N) {
+    // N is only the initial buffer size (may be 0); snprintf reports the exact size needed for the retry
+    for (std::string::size_type size_needed = N;;) {
         out.resize(size_needed);
-        if ((size_used = snprintf(&out[0], size_needed, fmt, args...)) < 0) { return std::string("FMT ERROR"); }
+        if ((size_used = std::snprintf(&out[0], size_needed, fmt, args...)) < 0) { return std::string("FMT ERROR"); }
         if (static_cast<std::string::size_type>(size_used) < size_needed) { break; }
+        size_needed = static_cast<std::string::size_type>(size_used) + 1;
     }
     out.resize(static_cast<std::string::size_type>(size_used));
     return out;
