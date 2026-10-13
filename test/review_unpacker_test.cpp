@@ -1,3 +1,4 @@
+#include <cwchar>
 #include <locale>
 #include <gtest/gtest.h>
 #include <cstdlib>
@@ -147,8 +148,11 @@ TEST(Review_N2, encoded_surrogate_throws) {
 // N1 guard: non-BMP wstring must round-trip (fails on 16-bit wchar_t if decoder is UCS-2).
 TEST(Review_N1, non_bmp_roundtrip) {
     std::wstring in = L"a\u00e9\u20ac";
-    in += (sizeof(wchar_t) == 2) ? std::wstring{ static_cast<wchar_t>(0xd83d), static_cast<wchar_t>(0xde00) }
-                                 : std::wstring{ static_cast<wchar_t>(0x1f600) };
+#if WCHAR_MAX > 0xFFFF
+    in += static_cast<wchar_t>(0x1f600);
+#else
+    in += std::wstring{ static_cast<wchar_t>(0xd83d), static_cast<wchar_t>(0xde00) };  // surrogate pair
+#endif
     packer p;
     p << in;
     unpacker u{ p.get_buffer() };

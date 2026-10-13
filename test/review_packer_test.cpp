@@ -9,8 +9,16 @@
 #include <algorithm>
 #include <cstring>
 #include <type_traits>
-#include <codecvt>
+#include <cwchar>
+#include <stdexcept>
+#include <utility>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
+// Pull in every standard header packer.h uses before macroizing `private`,
+// so that only packer.h itself is affected (MSVC's STL rejects keyword macros).
+#include "../msgpack-platform.h"
 
 // F16 needs access to the private put_*_length helpers (no huge allocation).
 #define private public
@@ -55,18 +63,26 @@ TEST(Review_F17, const_char_array_encodes_as_str_baseline) {
 
 // ---- F13: wstring -> UTF-8 must yield valid UTF-8 (RFC 3629) or fail.
 TEST(Review_F13, valid_non_bmp_encodes_4_bytes_baseline) {
-    if (sizeof(wchar_t) < 4) return;  // 16-bit wchar_t: not applicable
-    packer p; p << std::wstring(1, (wchar_t)0x1F600);
+#if WCHAR_MAX > 0xFFFF
+    const std::wstring w(1, static_cast<wchar_t>(0x1F600));
+#else
+    const std::wstring w{ static_cast<wchar_t>(0xD83D), static_cast<wchar_t>(0xDE00) };  // surrogate pair
+#endif
+    packer p; p << w;
     EXPECT_EQ(p.get_buffer(), (bytes{0xa4, 0xf0, 0x9f, 0x98, 0x80}));
 }
 TEST(Review_F13, lone_surrogate_throws_library_exception) {
-    if (sizeof(wchar_t) < 4) return;
-    EXPECT_THROW({ packer p; p << std::wstring(1, (wchar_t)0xD800); }, msgpack::output_conversion_error);
+    EXPECT_THROW({ packer p; p << std::wstring(1, static_cast<wchar_t>(0xD800)); }, msgpack::output_conversion_error);
 }
+#if WCHAR_MAX > 0xFFFF
 TEST(Review_F13, out_of_range_0x110000_throws_library_exception) {
-    if (sizeof(wchar_t) < 4) return;
-    EXPECT_THROW({ packer p; p << std::wstring(1, (wchar_t)0x110000); }, msgpack::output_conversion_error);
+    EXPECT_THROW({ packer p; p << std::wstring(1, static_cast<wchar_t>(0x110000)); }, msgpack::output_conversion_error);
 }
+#else
+TEST(Review_F13, lone_low_surrogate_throws_library_exception) {
+    EXPECT_THROW({ packer p; p << std::wstring(1, static_cast<wchar_t>(0xDC00)); }, msgpack::output_conversion_error);
+}
+#endif
 
 // ---- F18: README promises integers / arrays of integers; compile failures are in scratch-B probes.
 
@@ -105,7 +121,9 @@ TEST(Review_F24, null_cstr_encodes_nil) {
 #include <csignal>
 TEST(Review_F25, str_printf_N0_terminates) {
     EXPECT_EXIT({
-        alarm(2);
+#ifndef _WIN32
+        alarm(2);  // watchdog: a regression would hang instead of failing
+#endif
         std::string s = platform::str_printf<0>("%d", 1);
         std::exit(0);
     }, ::testing::ExitedWithCode(0), "");
