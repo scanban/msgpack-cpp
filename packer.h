@@ -5,11 +5,14 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <vector>
 #include "platform.h"
-#include <codecvt>
 
 namespace msgpack {
 
@@ -27,11 +30,26 @@ public:
     inline packer& operator<<(const int64_t value);
     inline packer& operator<<(const uint32_t value);
     inline packer& operator<<(const uint64_t value);
+
+    // long / long long (and unsigned) are distinct types from the fixed-width typedefs on some platforms
+    template<typename T> typename std::enable_if<(std::is_same<T, long>::value || std::is_same<T, long long>::value)
+                                                 && ! std::is_same<T, int32_t>::value && ! std::is_same<T, int64_t>::value, packer&>::type
+    operator<<(const T value) {
+        return *this << static_cast<int64_t>(value);
+    }
+
+    template<typename T> typename std::enable_if<(std::is_same<T, unsigned long>::value || std::is_same<T, unsigned long long>::value)
+                                                 && ! std::is_same<T, uint32_t>::value && ! std::is_same<T, uint64_t>::value, packer&>::type
+    operator<<(const T value) {
+        return *this << static_cast<uint64_t>(value);
+    }
+
     inline packer& operator<<(const float value);
     inline packer& operator<<(const double value);
     inline packer& operator<<(const std::string& str);
     inline packer& operator<<(const std::wstring& str);
     inline packer& operator<<(const char* str);
+    inline packer& operator<<(char* str);
     inline packer& operator<<(const packer& value);
 
     template <typename T> typename std::enable_if<! std::is_fundamental<T>::value, packer&>::type
@@ -43,7 +61,7 @@ public:
 
     template <typename ... _Args> packer& array(const _Args& ... args) {
         put_array_length(sizeof...(args));
-        int unused[] = { (this->operator<<(args), 0)... };
+        int unused[] = { 0, (this->operator<<(args), 0)... };
         (void) unused;
         return *this;
     }
@@ -103,7 +121,7 @@ private:
         *this << v;
 
         map_next(args...);
-    };
+    }
 };
 
 packer& packer::operator<<(std::nullptr_t) {
@@ -129,7 +147,7 @@ packer& packer::operator<<(const int32_t value) {
         put_byte(static_cast<uint8_t>(value));
     } else if (value >= std::numeric_limits<int16_t>::min() && value <= std::numeric_limits<int16_t>::max()) {
         put_byte(0xd1);
-        put_numeric(static_cast<const int16_t>(value));
+        put_numeric(static_cast<int16_t>(value));
     } else {
         put_byte(0xd2);
         put_numeric(value);
@@ -156,7 +174,7 @@ packer& packer::operator<<(const uint32_t value) {
         put_byte(static_cast<uint8_t>(value));
     } else if (value <= std::numeric_limits<uint16_t>::max()) {
         put_byte(0xcd);
-        put_numeric(static_cast<const int16_t>(value));
+        put_numeric(static_cast<uint16_t>(value));
     } else {
         put_byte(0xce);
         put_numeric(value);
@@ -197,11 +215,45 @@ packer& packer::operator<<(const std::string& str) {
 }
 
 packer& packer::operator <<(const std::wstring& str) {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
-    return *this << cvt.to_bytes(str);
+    std::string out;
+    out.reserve(str.length());
+    for (size_t i = 0; i < str.length(); ++i) {
+        uint32_t cp = static_cast<uint32_t>(str[i]);
+        // 16-bit wchar_t (UTF-16): combine surrogate pairs, lone surrogates are rejected below
+        if (sizeof(wchar_t) == 2 && cp >= 0xd800u && cp <= 0xdbffu && i + 1 < str.length()) {
+            const uint32_t low = static_cast<uint32_t>(str[i + 1]);
+            if (low >= 0xdc00u && low <= 0xdfffu) {
+                cp = 0x10000u + ((cp - 0xd800u) << 10) + (low - 0xdc00u);
+                ++i;
+            }
+        }
+        if ((cp >= 0xd800u && cp <= 0xdfffu) || cp > 0x10ffffu) {
+            throw output_conversion_error("invalid wide character in string");
+        }
+        if (cp < 0x80u) {
+            out.push_back(static_cast<char>(cp));
+        } else if (cp < 0x800u) {
+            out.push_back(static_cast<char>(0xc0u | (cp >> 6)));
+            out.push_back(static_cast<char>(0x80u | (cp & 0x3fu)));
+        } else if (cp < 0x10000u) {
+            out.push_back(static_cast<char>(0xe0u | (cp >> 12)));
+            out.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3fu)));
+            out.push_back(static_cast<char>(0x80u | (cp & 0x3fu)));
+        } else {
+            out.push_back(static_cast<char>(0xf0u | (cp >> 18)));
+            out.push_back(static_cast<char>(0x80u | ((cp >> 12) & 0x3fu)));
+            out.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3fu)));
+            out.push_back(static_cast<char>(0x80u | (cp & 0x3fu)));
+        }
+    }
+    return *this << out;
 }
 
 packer& packer::operator<<(const char* str) {
+    if (str == nullptr) {
+        put_byte(0xc0);
+        return *this;
+    }
     const size_t len = strlen(str);
     put_string_length(len);
     std::copy(str, str + len, back_inserter(_buffer));
@@ -209,9 +261,18 @@ packer& packer::operator<<(const char* str) {
     return *this;
 }
 
+packer& packer::operator<<(char* str) {
+    return *this << static_cast<const char*>(str);
+}
+
 packer& packer::operator<<(const packer& value) {
-    _buffer.reserve(_buffer.size() + value._buffer.size());
-    _buffer.insert(_buffer.end(), value._buffer.cbegin(), value._buffer.cend());
+    if (&value == this) {
+        // inserting a range of the vector into itself is not allowed, copy first
+        const buffer_type copy(_buffer);
+        _buffer.insert(_buffer.end(), copy.cbegin(), copy.cend());
+    } else {
+        _buffer.insert(_buffer.end(), value._buffer.cbegin(), value._buffer.cend());
+    }
     return *this;
 }
 
@@ -244,6 +305,8 @@ void packer::put_string_length(size_t length) {
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
         put_byte(0xdb);
         put_numeric(static_cast<uint32_t>(length));
+    } else {
+        throw output_conversion_error("length exceeds the MessagePack limit of 2^32-1");
     }
 }
 
@@ -256,6 +319,8 @@ void packer::put_array_length(size_t length) {
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
         put_byte(0xdd);
         put_numeric(static_cast<uint32_t>(length));
+    } else {
+        throw output_conversion_error("length exceeds the MessagePack limit of 2^32-1");
     }
 }
 
@@ -268,6 +333,8 @@ void packer::put_map_length(size_t length) {
     } else if (length <= std::numeric_limits<uint32_t>::max()) {
         put_byte(0xdf);
         put_numeric(static_cast<uint32_t>(length));
+    } else {
+        throw output_conversion_error("length exceeds the MessagePack limit of 2^32-1");
     }
 }
 
