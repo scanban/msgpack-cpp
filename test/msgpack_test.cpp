@@ -58,7 +58,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int16) {
     packer p;
     p << (1 << 8);
     p << (127 << 8);
-    p << (-128 << 8);
+    p << (-128 * (1 << 8));
 
     unpacker u{ p.get_buffer() };
 
@@ -67,7 +67,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int16) {
     EXPECT_EQ(u.type(), unpacker::T_INT16);
     EXPECT_EQ(get_value<int16_t>(u), 127 << 8);
     EXPECT_EQ(u.type(), unpacker::T_INT16);
-    EXPECT_EQ(get_value<int16_t>(u), -128 << 8);
+    EXPECT_EQ(get_value<int16_t>(u), -128 * (1 << 8));
 
     EXPECT_TRUE(u.empty());
 }
@@ -76,7 +76,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int32) {
     packer p;
     p << (int32_t{ 1 } << 24);
     p << (int32_t{ 127 } << 24);
-    p << (int32_t{ -128 } << 24);
+    p << (int32_t{ -128 } * (int32_t{ 1 } << 24));
 
     unpacker u{ p.get_buffer() };
 
@@ -85,7 +85,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int32) {
     EXPECT_EQ(u.type(), unpacker::T_INT32);
     EXPECT_EQ(get_value<int32_t>(u), int32_t{ 127 } << 24);
     EXPECT_EQ(u.type(), unpacker::T_INT32);
-    EXPECT_EQ(get_value<int32_t>(u), int32_t{ -128 } << 24);
+    EXPECT_EQ(get_value<int32_t>(u), int32_t{ -128 } * (int32_t{ 1 } << 24));
 
     EXPECT_TRUE(u.empty());
 }
@@ -94,7 +94,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int64) {
     packer p;
     p << (int64_t{ 1 } << 48);
     p << (int64_t{ 127 } << 48);
-    p << (int64_t{ -128 } << 48);
+    p << (int64_t{ -128 } * (int64_t{ 1 } << 48));
 
     unpacker u{ p.get_buffer() };
 
@@ -103,7 +103,7 @@ TEST(MSGPACK_PACKER_BASE, msgpack_int64) {
     EXPECT_EQ(u.type(), unpacker::T_INT64);
     EXPECT_EQ(get_value<int64_t>(u), int64_t{ 127 } << 48);
     EXPECT_EQ(u.type(), unpacker::T_INT64);
-    EXPECT_EQ(get_value<int64_t>(u), int64_t{ -128 } << 48);
+    EXPECT_EQ(get_value<int64_t>(u), int64_t{ -128 } * (int64_t{ 1 } << 48));
 
     EXPECT_TRUE(u.empty());
 }
