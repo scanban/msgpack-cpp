@@ -5,3 +5,4 @@ build
 /main.cpp
 /cmake-build-*/
 /.idea/
+.review/
