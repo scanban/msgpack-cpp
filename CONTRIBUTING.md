@@ -111,6 +111,30 @@ at configure time with CMAKE_CXX_COMPILER not set. Install the
 compiler from the Ubuntu archive for matrix entries that request it.
 ```
 
+## Releasing
+
+Releases are tag-driven, and the version follows [Semantic Versioning](https://semver.org/).
+
+1. Bump `project(msgpack VERSION x.y.z ...)` in `CMakeLists.txt`.
+2. In [CHANGELOG.md](CHANGELOG.md), move the `[Unreleased]` entries into a new `## [x.y.z] - YYYY-MM-DD`
+   section, and update the links at the bottom.
+3. Commit as `chore(release): x.y.z`, push, and wait for CI to pass.
+4. Tag and push:
+
+   ```sh
+   git tag -a vx.y.z -m "msgpack-cpp x.y.z"
+   git push origin vx.y.z
+   ```
+
+The [release workflow](.github/workflows/release.yml) then:
+
+- runs the full CI matrix;
+- checks that the tag matches the CMake version;
+- uses the changelog section as the release notes;
+- publishes the release with `msgpack-cpp-x.y.z-headers.tar.gz` / `.zip` and `SHA256SUMS` attached.
+
+To check a release locally before tagging, run `ci/package-release.sh vx.y.z`.
+
 ## Reporting bugs
 
 Please include:
