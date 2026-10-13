@@ -41,11 +41,11 @@ include_directories("${source_dir}/googletest/include"
 
 set(GTEST_LIBRARIES libgtest libgmock)
 
-set(TEST_PROGRAMS msgpack_test)
+set(TEST_PROGRAMS msgpack_test.cpp)
 set(INCLUDES ../packer.h ../unpacker.h ../platform.h)
 
 foreach (source_file ${TEST_PROGRAMS})
-    get_filename_component(test_name ${source_file} NAME)
+    get_filename_component(test_name ${source_file} NAME_WE)
     add_executable(
             ${test_name}
             ${source_file}

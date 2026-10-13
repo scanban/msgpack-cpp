@@ -1,9 +1,17 @@
 include(ExternalProject)
 
+# hayai's own CMakeLists predates CMake 3.5: silence its warnings, and on CMake 4+ (which rejects
+# such old minimum versions) raise its policy minimum so it still configures
+set(HAYAI_CMAKE_ARGS -Wno-dev -Wno-deprecated)
+if (NOT CMAKE_VERSION VERSION_LESS 4.0)
+    list(APPEND HAYAI_CMAKE_ARGS -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
+endif ()
+
 ExternalProject_Add(
         hayai
         URL https://github.com/nickbruun/hayai/archive/v1.0.1.zip
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hayai
+        CMAKE_ARGS ${HAYAI_CMAKE_ARGS}
         # Disable install step
         INSTALL_COMMAND ""
 )
@@ -18,12 +26,12 @@ add_library(hayai_main IMPORTED STATIC GLOBAL)
 set_target_properties(hayai_main PROPERTIES
         "IMPORTED_LOCATION" "${binary_dir}/src/libhayai_main.a")
 
-set(BENCHMARK_PROGRAMS msgpack_benchmark)
+set(BENCHMARK_PROGRAMS msgpack_benchmark.cpp)
 set(INCLUDES ../packer.h ../unpacker.h ../platform.h)
 include_directories(${source_dir}/src)
 
 foreach (source_file ${BENCHMARK_PROGRAMS})
-    get_filename_component(bench_name ${source_file} NAME)
+    get_filename_component(bench_name ${source_file} NAME_WE)
     add_executable(
             ${bench_name}
             ${source_file}

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5...3.29)
 project(msgpack VERSION 0.0.1 LANGUAGES C CXX)
 
 option(ENABLE_TESTING "ENABLE_TESTING" OFF)
