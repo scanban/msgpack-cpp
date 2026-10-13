@@ -12,7 +12,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "platform.h"
+#include "msgpack-platform.h"
 
 namespace msgpack {
 

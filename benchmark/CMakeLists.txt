@@ -27,7 +27,7 @@ set_target_properties(hayai_main PROPERTIES
         "IMPORTED_LOCATION" "${binary_dir}/src/libhayai_main.a")
 
 set(BENCHMARK_PROGRAMS msgpack_benchmark.cpp)
-set(INCLUDES ../packer.h ../unpacker.h ../platform.h)
+set(INCLUDES ../packer.h ../unpacker.h ../msgpack-platform.h)
 include_directories(${source_dir}/src)
 
 foreach (source_file ${BENCHMARK_PROGRAMS})

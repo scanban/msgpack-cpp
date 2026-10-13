@@ -18,11 +18,11 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
-#include "platform.h"
+#include "msgpack-platform.h"
 
 namespace msgpack {
 
-// output_conversion_error and output_underflow_error are defined in platform.h
+// output_conversion_error and output_underflow_error are defined in msgpack-platform.h
 
 struct unpacker_skip {};
 constexpr unpacker_skip const skip{};
